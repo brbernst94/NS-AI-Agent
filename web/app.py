@@ -117,9 +117,9 @@ def render_sidebar() -> None:
         # API Status
         is_healthy = check_api_health()
         if is_healthy:
-            st.success("API Connected", icon="")
+            st.success("API Connected")
         else:
-            st.error("API Offline", icon="")
+            st.error("API Offline")
             st.caption(f"Start server: `uvicorn api.main:app --reload`")
 
         st.divider()
