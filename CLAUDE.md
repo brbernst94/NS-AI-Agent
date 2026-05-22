@@ -146,7 +146,47 @@ Terminal 2: Start Streamlit (connects to API)
 streamlit run web/app.py
 ```
 
-## Ingesting NetSuite Documentation
+## Automatic Learning from Chat
+
+The agent **automatically learns from conversations**. After each chat:
+
+1. The agent analyzes your question and its response
+2. It extracts key NetSuite knowledge (field names, mapping rules, validation requirements, best practices)
+3. It automatically adds this to the knowledge base
+4. Future conversations can use these learnings
+
+**What gets automatically learned:**
+- Field definitions mentioned in conversation
+- Mapping rules you discover
+- Validation requirements
+- Transformation rules discussed
+- Best practices
+
+**What doesn't get learned:**
+- Trivial chats or clarifications
+- Responses shorter than 100 characters (likely errors)
+- Conversations without substantive NetSuite knowledge
+
+### Example:
+
+```
+You: "How do I handle dates in a customer import from SAP?"
+
+Agent: "Dates should be in MM/DD/YYYY format. SAP often exports 
+in YYYYMMDD format, so you need to transform them. Use a script 
+or Excel formula to convert. Also, never import future dates..."
+
+✅ This gets automatically saved to knowledge base because it contains
+   useful mapping and validation knowledge.
+```
+
+Next time you ask about dates, the agent will have learned from this conversation.
+
+---
+
+## Manual Knowledge Ingestion
+
+You can also manually add documents to the knowledge base:
 
 ### Via CLI
 ```bash

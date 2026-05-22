@@ -181,12 +181,85 @@ class NSMigrationAgent:
             project_id=effective_project_id,
         )
 
+        # Extract and store learnings from this conversation
+        try:
+            self._extract_and_store_learnings(user_message, final_response)
+        except Exception as exc:
+            logger.warning("Failed to extract learnings: %s", exc)
+
         return {
             "response": final_response,
             "session_id": session_id,
             "tool_calls_made": tool_calls_made,
             "iterations": iterations,
         }
+
+    def _extract_and_store_learnings(self, user_message: str, agent_response: str) -> None:
+        """
+        Extract key learnings from the conversation and automatically add to knowledge base.
+
+        Identifies:
+        - NetSuite field information
+        - Mapping rules
+        - Validation requirements
+        - Transformation rules
+        - Best practices
+        """
+        # Don't extract from very short responses (likely errors or clarifications)
+        if len(agent_response) < 100:
+            return
+
+        # Build a prompt to extract learnings
+        extraction_prompt = f"""
+        Analyze this NetSuite migration conversation and extract key learnings that should be saved to a knowledge base.
+
+        USER QUESTION: {user_message}
+
+        AGENT RESPONSE: {agent_response}
+
+        Extract ONLY if the response contains substantive NetSuite knowledge (field names, mapping rules, validation requirements, best practices).
+
+        Return a concise summary (2-5 sentences) suitable for adding to a knowledge base.
+        Focus on: field definitions, required fields, formats, transformations, validation rules, or best practices.
+
+        If the response is just a clarification or doesn't contain useful knowledge to preserve, respond with: SKIP
+        """
+
+        try:
+            response = self.client.messages.create(
+                model=self.model,
+                max_tokens=500,
+                messages=[{"role": "user", "content": extraction_prompt}],
+            )
+
+            learning_text = response.content[0].text if response.content else ""
+
+            # Check if extraction was skipped
+            if "SKIP" in learning_text.upper():
+                logger.debug("Skipped learning extraction (no substantive knowledge)")
+                return
+
+            if not learning_text.strip():
+                return
+
+            # Add the learning to the knowledge base
+            self.knowledge_index.add_documents(
+                [
+                    {
+                        "text": learning_text,
+                        "source": "chat_learning",
+                        "metadata": {
+                            "type": "learned_from_chat",
+                            "user_question": user_message[:200],
+                        },
+                    }
+                ]
+            )
+
+            logger.info("Stored learning from chat: %s", learning_text[:100])
+
+        except Exception as exc:
+            logger.debug("Could not extract learning: %s", exc)
 
     # ------------------------------------------------------------------
     # Streaming support
@@ -305,6 +378,12 @@ class NSMigrationAgent:
             content=full_response,
             project_id=effective_project_id,
         )
+
+        # Extract and store learnings from this conversation
+        try:
+            self._extract_and_store_learnings(user_message, full_response)
+        except Exception as exc:
+            logger.warning("Failed to extract learnings: %s", exc)
 
         yield {
             "type": "done",

@@ -152,6 +152,7 @@ See [CLAUDE.md](./CLAUDE.md) for:
 ✅ **Field Mapping** — Fuzzy matching from legacy systems
 ✅ **Data Transformation** — Automatic normalization and formatting
 ✅ **NetSuite Field Registry** — 1000+ field definitions by record type
+✅ **Automatic Learning** — Agent learns from conversations (extracts NetSuite knowledge automatically)
 ✅ **GitHub Persistence** — All training data syncs to GitHub (deploy anywhere)
 ✅ **Multi-Device Sync** — Clone on any computer and have your trained agent ready
 ✅ **Production Ready** — Proper error handling, logging, type hints
