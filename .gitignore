@@ -42,11 +42,8 @@ env/
 .env.local
 .env.*.local
 
-# Data and databases
-data/
-*.db
-*.sqlite
-*.sqlite3
+# Note: data/ folder IS tracked so knowledge persists across devices
+# Large data files should be managed separately if repo gets too large
 
 # Streamlit
 .streamlit/
