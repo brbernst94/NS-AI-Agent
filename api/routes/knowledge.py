@@ -10,6 +10,8 @@ from typing import Any
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile
 from pydantic import BaseModel, Field, HttpUrl
 
+from agent.github_sync import sync_to_github
+
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/knowledge", tags=["knowledge"])
 
@@ -62,6 +64,7 @@ async def ingest_text(body: IngestTextRequest, agent: Any = Depends(get_agent)) 
     """Ingest plain text into the knowledge base."""
     try:
         chunks = agent.ingest_text(body.text, body.source_name)
+        sync_to_github(f"Ingested text: {body.source_name}")
         return IngestResponse(
             source=body.source_name,
             chunks_added=chunks,
@@ -77,6 +80,7 @@ async def ingest_url(body: IngestUrlRequest, agent: Any = Depends(get_agent)) ->
     """Fetch a URL and ingest its content into the knowledge base."""
     try:
         chunks = agent.ingest_url(str(body.url))
+        sync_to_github(f"Ingested URL: {str(body.url)[:80]}")
         return IngestResponse(
             source=str(body.url)[:100],
             chunks_added=chunks,
@@ -109,6 +113,7 @@ async def ingest_file(
     try:
         content = await file.read()
         chunks = agent.ingest_document(file.filename, content)
+        sync_to_github(f"Ingested file: {file.filename}")
         return IngestResponse(
             source=file.filename,
             chunks_added=chunks,
