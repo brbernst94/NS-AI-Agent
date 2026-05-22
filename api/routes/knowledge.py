@@ -7,7 +7,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, Request, UploadFile
 from pydantic import BaseModel, Field, HttpUrl
 
 from agent.github_sync import sync_to_github
@@ -60,11 +60,11 @@ def get_agent(request: Request) -> Any:
 # ---------------------------------------------------------------------------
 
 @router.post("/ingest/text", response_model=IngestResponse)
-async def ingest_text(body: IngestTextRequest, agent: Any = Depends(get_agent)) -> IngestResponse:
+async def ingest_text(body: IngestTextRequest, background_tasks: BackgroundTasks, agent: Any = Depends(get_agent)) -> IngestResponse:
     """Ingest plain text into the knowledge base."""
     try:
         chunks = agent.ingest_text(body.text, body.source_name)
-        sync_to_github(f"Ingested text: {body.source_name}")
+        background_tasks.add_task(sync_to_github, f"Ingested text: {body.source_name}")
         return IngestResponse(
             source=body.source_name,
             chunks_added=chunks,
@@ -76,11 +76,11 @@ async def ingest_text(body: IngestTextRequest, agent: Any = Depends(get_agent)) 
 
 
 @router.post("/ingest/url", response_model=IngestResponse)
-async def ingest_url(body: IngestUrlRequest, agent: Any = Depends(get_agent)) -> IngestResponse:
+async def ingest_url(body: IngestUrlRequest, background_tasks: BackgroundTasks, agent: Any = Depends(get_agent)) -> IngestResponse:
     """Fetch a URL and ingest its content into the knowledge base."""
     try:
         chunks = agent.ingest_url(str(body.url))
-        sync_to_github(f"Ingested URL: {str(body.url)[:80]}")
+        background_tasks.add_task(sync_to_github, f"Ingested URL: {str(body.url)[:80]}")
         return IngestResponse(
             source=str(body.url)[:100],
             chunks_added=chunks,
@@ -94,6 +94,7 @@ async def ingest_url(body: IngestUrlRequest, agent: Any = Depends(get_agent)) ->
 @router.post("/ingest/file", response_model=IngestResponse)
 async def ingest_file(
     file: UploadFile = File(...),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
     agent: Any = Depends(get_agent),
 ) -> IngestResponse:
     """
@@ -113,7 +114,7 @@ async def ingest_file(
     try:
         content = await file.read()
         chunks = agent.ingest_document(file.filename, content)
-        sync_to_github(f"Ingested file: {file.filename}")
+        background_tasks.add_task(sync_to_github, f"Ingested file: {file.filename}")
         return IngestResponse(
             source=file.filename,
             chunks_added=chunks,
