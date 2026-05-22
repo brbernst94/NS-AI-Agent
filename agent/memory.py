@@ -168,7 +168,7 @@ class AgentMemory:
                 SELECT role, content, tool_name, created_at
                 FROM messages
                 WHERE session_id = ?
-                ORDER BY created_at DESC
+                ORDER BY id DESC
                 LIMIT ?
                 """,
                 (session_id, limit),
