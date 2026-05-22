@@ -74,14 +74,6 @@ def chat(ctx: click.Context, project_id: str | None, session_id: str | None) -> 
             current_session = result["session_id"]
 
             click.echo(result["response"])
-
-            if result["tool_calls_made"]:
-                click.echo(
-                    click.style(
-                        f"\n[Tools used: {', '.join(result['tool_calls_made'])}]",
-                        fg="yellow",
-                    )
-                )
             click.echo("")
 
         except Exception as exc:
