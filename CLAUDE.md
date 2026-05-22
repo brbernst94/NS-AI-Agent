@@ -182,18 +182,26 @@ curl "http://localhost:8000/knowledge/search?q=customer+mapping&n=5"
 
 ## Using the Agent
 
-### Chat with the Agent
-Ask questions about NetSuite migrations:
+### Pure Text Chat Interface
+
+The agent presents a **simple text chat experience**. You type natural language questions, and the agent automatically uses its tools in the background to find answers. No tool names or internal details are shown — just natural conversation.
+
+**Tools the agent automatically uses:**
+1. Searches your knowledge base for relevant NetSuite documentation
+2. Looks up field definitions and internal IDs
+3. Validates data against NetSuite requirements
+4. Maps legacy fields to NetSuite fields
+5. Transforms data into import-ready format
+6. Maintains project memory across conversations
+
+**Example questions:**
 - "How do I map SAP customer data to NetSuite?"
 - "What are the required fields for an invoice import?"
 - "Show me the internal IDs for the Customer record type"
-- "Validate this CSV file for invoice import"
+- "Is this CSV ready to import as Customers?"
+- "How do I set up the employee location field?"
 
-The agent will:
-1. Search the knowledge base for relevant documentation
-2. Look up NetSuite field definitions
-3. Provide specific, practical guidance
-4. Cite field internal IDs and best practices
+The agent will automatically use relevant tools and respond naturally with guidance, field names, data validation results, and best practices.
 
 ### Validate a Migration CSV
 ```bash

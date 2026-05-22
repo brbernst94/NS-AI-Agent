@@ -46,12 +46,16 @@ streamlit run web/app.py
 
 ## What It Does
 
+**Pure Text Chat Interface** — Just ask natural language questions. The agent automatically uses its tools in the background.
+
 - **Learns from Documentation** — Ingest PDFs, Word docs, CSVs, and URLs into a searchable knowledge base
 - **Answers Questions** — Uses RAG to answer questions about NetSuite migrations
 - **Maps Fields** — Intelligently maps legacy system fields to NetSuite fields
 - **Validates CSVs** — Checks migration files against NetSuite requirements before import
 - **Transforms Data** — Automatically generates NetSuite CSV Import-ready files
 - **Maintains Memory** — Remembers field mappings and decisions per project
+
+All 8 tools run automatically — you just see natural conversation, not tool invocations.
 
 ## Agent Capabilities
 
