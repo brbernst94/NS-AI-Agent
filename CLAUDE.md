@@ -249,6 +249,54 @@ curl -X POST http://localhost:8000/chat \
 # Web UI: Select project in sidebar
 ```
 
+## GitHub Persistence & Multi-Device Sync
+
+All trained knowledge is backed up to GitHub, so you can:
+- **Work from multiple computers** — Clone the repo anywhere and have all your training data
+- **Deploy to the cloud** — Push to GitHub, then deploy to production with all your knowledge intact
+- **Share trained models** — Your team can clone the repo and use your trained agent
+
+### How it works:
+
+All data is stored in the `data/` folder and tracked by Git:
+```
+NS-AI-Agent/data/
+├── agent_memory.db        # All conversations and projects
+└── chroma_db/             # All uploaded documents and knowledge
+```
+
+### Workflow:
+
+**On your first computer:**
+```bash
+# Train the agent (upload docs, chat, create projects)
+streamlit run web/app.py
+
+# Commit and push to GitHub
+git add .
+git commit -m "Train agent with customer migration docs"
+git push origin claude/funny-ride-Oq16Q
+```
+
+**On your second computer (or cloud deployment):**
+```bash
+# Clone the repo with all training data
+git clone https://github.com/brbernst94/NS-AI-Agent.git
+cd NS-AI-Agent
+
+# Your knowledge is already there!
+streamlit run web/app.py
+```
+
+### Large knowledge bases:
+
+If your `data/` folder grows very large (100MB+), consider:
+- Using cloud storage (AWS S3, Google Cloud Storage) for large documents
+- Using a managed database (PostgreSQL + pgvector) for production
+- Archiving old migrations to a separate repository
+
+For most use cases, GitHub storage works perfectly fine.
+
 ## Adding NetSuite Field Definitions
 
 To expand the field registry, edit `netsuite/field_registry.py`:
