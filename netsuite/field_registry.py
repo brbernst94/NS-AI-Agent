@@ -1,0 +1,1583 @@
+"""NetSuite standard field definitions by record type.
+
+Each record type maps to a dict of field definitions keyed by internal_id.
+Field definition structure:
+    {
+        "internal_id": str,       # NetSuite internal field ID
+        "label": str,             # Display label in NetSuite UI
+        "type": str,              # text | select | date | currency | integer | decimal | checkbox | email | phone | textarea | list
+        "required": bool,         # True if mandatory for import
+        "max_length": int | None, # Max character length (None = no limit or N/A)
+        "notes": str,             # Migration-specific notes
+    }
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+# ---------------------------------------------------------------------------
+# Customer
+# ---------------------------------------------------------------------------
+_CUSTOMER_FIELDS: dict[str, dict[str, Any]] = {
+    "entityid": {
+        "internal_id": "entityid",
+        "label": "Customer ID",
+        "type": "text",
+        "required": False,
+        "max_length": 40,
+        "notes": "Auto-generated if not provided; use source system PK to keep traceability. Format: '<name> <number>' or just a number.",
+    },
+    "externalid": {
+        "internal_id": "externalid",
+        "label": "External ID",
+        "type": "text",
+        "required": False,
+        "max_length": 255,
+        "notes": "STRONGLY RECOMMENDED: Set to source system primary key. Enables idempotent re-runs and back-tracing.",
+    },
+    "isperson": {
+        "internal_id": "isperson",
+        "label": "Individual",
+        "type": "checkbox",
+        "required": False,
+        "max_length": None,
+        "notes": "T = individual person, F = company. Drives whether firstname/lastname vs. companyname is used.",
+    },
+    "companyname": {
+        "internal_id": "companyname",
+        "label": "Company Name",
+        "type": "text",
+        "required": False,
+        "max_length": 83,
+        "notes": "Required when isperson = F. Must not exceed 83 characters.",
+    },
+    "salutation": {
+        "internal_id": "salutation",
+        "label": "Salutation",
+        "type": "select",
+        "required": False,
+        "max_length": 15,
+        "notes": "Mr., Ms., Mrs., Dr., Prof. Must match NetSuite list value exactly.",
+    },
+    "firstname": {
+        "internal_id": "firstname",
+        "label": "First Name",
+        "type": "text",
+        "required": False,
+        "max_length": 32,
+        "notes": "Required when isperson = T.",
+    },
+    "middlename": {
+        "internal_id": "middlename",
+        "label": "Middle Name",
+        "type": "text",
+        "required": False,
+        "max_length": 32,
+        "notes": "Optional for individual records.",
+    },
+    "lastname": {
+        "internal_id": "lastname",
+        "label": "Last Name",
+        "type": "text",
+        "required": False,
+        "max_length": 32,
+        "notes": "Required when isperson = T.",
+    },
+    "email": {
+        "internal_id": "email",
+        "label": "Email",
+        "type": "email",
+        "required": False,
+        "max_length": 254,
+        "notes": "Must be valid email format. Used as login for Customer Center portal access.",
+    },
+    "phone": {
+        "internal_id": "phone",
+        "label": "Phone",
+        "type": "phone",
+        "required": False,
+        "max_length": 21,
+        "notes": "Main phone. Strip all formatting before import; NetSuite re-formats on save.",
+    },
+    "altphone": {
+        "internal_id": "altphone",
+        "label": "Alt. Phone",
+        "type": "phone",
+        "required": False,
+        "max_length": 21,
+        "notes": "Alternate/secondary phone number.",
+    },
+    "fax": {
+        "internal_id": "fax",
+        "label": "Fax",
+        "type": "phone",
+        "required": False,
+        "max_length": 21,
+        "notes": "Fax number. Same formatting rules as phone.",
+    },
+    "mobilephone": {
+        "internal_id": "mobilephone",
+        "label": "Mobile Phone",
+        "type": "phone",
+        "required": False,
+        "max_length": 21,
+        "notes": "Mobile/cell phone number.",
+    },
+    "website": {
+        "internal_id": "url",
+        "label": "Website",
+        "type": "text",
+        "required": False,
+        "max_length": 100,
+        "notes": "Include protocol: https://www.example.com",
+    },
+    "subsidiary": {
+        "internal_id": "subsidiary",
+        "label": "Subsidiary",
+        "type": "select",
+        "required": True,
+        "max_length": None,
+        "notes": "REQUIRED for OneWorld accounts. Use subsidiary Name or Internal ID. Must be active subsidiary.",
+    },
+    "currency": {
+        "internal_id": "currency",
+        "label": "Currency",
+        "type": "select",
+        "required": False,
+        "max_length": None,
+        "notes": "3-letter ISO 4217 code (USD, EUR, GBP, CAD). Must be enabled in subsidiary settings.",
+    },
+    "terms": {
+        "internal_id": "terms",
+        "label": "Payment Terms",
+        "type": "select",
+        "required": False,
+        "max_length": None,
+        "notes": "Must match a Terms record name exactly (e.g., 'Net 30', 'Due on Receipt'). Create terms records before import.",
+    },
+    "creditlimit": {
+        "internal_id": "creditlimit",
+        "label": "Credit Limit",
+        "type": "currency",
+        "required": False,
+        "max_length": None,
+        "notes": "Numeric value only — no $ or commas. E.g. 50000.00",
+    },
+    "creditholdoverride": {
+        "internal_id": "creditholdoverride",
+        "label": "Credit Hold",
+        "type": "select",
+        "required": False,
+        "max_length": None,
+        "notes": "AUTO, ON, OFF. Controls credit hold behavior.",
+    },
+    "custgroup": {
+        "internal_id": "custgroup",
+        "label": "Customer Group",
+        "type": "select",
+        "required": False,
+        "max_length": None,
+        "notes": "Links to Customer Group record. Used for group billing and reporting.",
+    },
+    "salesrep": {
+        "internal_id": "salesrep",
+        "label": "Sales Rep",
+        "type": "select",
+        "required": False,
+        "max_length": None,
+        "notes": "Must reference an active Employee with 'Sales Rep' checkbox enabled.",
+    },
+    "territory": {
+        "internal_id": "territory",
+        "label": "Territory",
+        "type": "select",
+        "required": False,
+        "max_length": None,
+        "notes": "Sales Territory record. Must exist before import.",
+    },
+    "pricelevel": {
+        "internal_id": "pricelevel",
+        "label": "Price Level",
+        "type": "select",
+        "required": False,
+        "max_length": None,
+        "notes": "Must match a Price Level record. E.g., 'Base Price', 'Wholesale'.",
+    },
+    "category": {
+        "internal_id": "category",
+        "label": "Category",
+        "type": "select",
+        "required": False,
+        "max_length": None,
+        "notes": "Customer Category list value. Must pre-exist in NetSuite.",
+    },
+    "taxitem": {
+        "internal_id": "taxitem",
+        "label": "Tax Code",
+        "type": "select",
+        "required": False,
+        "max_length": None,
+        "notes": "Tax code / nexus must be configured before import.",
+    },
+    "resalenum": {
+        "internal_id": "resalenum",
+        "label": "Resale Number",
+        "type": "text",
+        "required": False,
+        "max_length": 20,
+        "notes": "Tax exemption / resale certificate number.",
+    },
+    "isinactive": {
+        "internal_id": "isinactive",
+        "label": "Inactive",
+        "type": "checkbox",
+        "required": False,
+        "max_length": None,
+        "notes": "T to make inactive. Inactive customers do not appear in default searches.",
+    },
+    "comments": {
+        "internal_id": "comments",
+        "label": "Notes",
+        "type": "textarea",
+        "required": False,
+        "max_length": None,
+        "notes": "Free-text notes/comments on the customer record.",
+    },
+    # Address (default billing)
+    "defaultbillingaddress": {
+        "internal_id": "defaultbillingaddress",
+        "label": "Default Billing Address",
+        "type": "text",
+        "required": False,
+        "max_length": None,
+        "notes": "For CSV import use the address sublist columns: addr1, addr2, city, state, zip, country.",
+    },
+    "addr1": {
+        "internal_id": "addr1",
+        "label": "Address Line 1",
+        "type": "text",
+        "required": False,
+        "max_length": 150,
+        "notes": "Street address line 1 on address sublist.",
+    },
+    "addr2": {
+        "internal_id": "addr2",
+        "label": "Address Line 2",
+        "type": "text",
+        "required": False,
+        "max_length": 150,
+        "notes": "Street address line 2 on address sublist.",
+    },
+    "city": {
+        "internal_id": "city",
+        "label": "City",
+        "type": "text",
+        "required": False,
+        "max_length": 50,
+        "notes": "City name.",
+    },
+    "state": {
+        "internal_id": "state",
+        "label": "State/Province",
+        "type": "text",
+        "required": False,
+        "max_length": 32,
+        "notes": "Must match NetSuite state list value exactly (e.g., CA, NY, TX for US). Use ISO 3166-2 code.",
+    },
+    "zip": {
+        "internal_id": "zip",
+        "label": "Zip/Postal Code",
+        "type": "text",
+        "required": False,
+        "max_length": 36,
+        "notes": "US: 5 digits or ZIP+4 (12345-6789). No spaces for most international codes.",
+    },
+    "country": {
+        "internal_id": "country",
+        "label": "Country",
+        "type": "select",
+        "required": False,
+        "max_length": None,
+        "notes": "Must use NetSuite country name or 2-letter ISO code (US, GB, CA, DE, etc.).",
+    },
+    "addressee": {
+        "internal_id": "addressee",
+        "label": "Addressee",
+        "type": "text",
+        "required": False,
+        "max_length": 150,
+        "notes": "Name to appear on the address label. Often same as companyname or contact name.",
+    },
+}
+
+# ---------------------------------------------------------------------------
+# Vendor
+# ---------------------------------------------------------------------------
+_VENDOR_FIELDS: dict[str, dict[str, Any]] = {
+    "entityid": {
+        "internal_id": "entityid",
+        "label": "Vendor ID",
+        "type": "text",
+        "required": False,
+        "max_length": 40,
+        "notes": "Vendor name or number. Auto-assigned if blank.",
+    },
+    "externalid": {
+        "internal_id": "externalid",
+        "label": "External ID",
+        "type": "text",
+        "required": False,
+        "max_length": 255,
+        "notes": "Source system primary key. Critical for idempotent re-runs.",
+    },
+    "isperson": {
+        "internal_id": "isperson",
+        "label": "Individual",
+        "type": "checkbox",
+        "required": False,
+        "max_length": None,
+        "notes": "T = individual (1099 vendor), F = company.",
+    },
+    "companyname": {
+        "internal_id": "companyname",
+        "label": "Company Name",
+        "type": "text",
+        "required": True,
+        "max_length": 83,
+        "notes": "Required when isperson = F.",
+    },
+    "firstname": {
+        "internal_id": "firstname",
+        "label": "First Name",
+        "type": "text",
+        "required": False,
+        "max_length": 32,
+        "notes": "Required when isperson = T.",
+    },
+    "lastname": {
+        "internal_id": "lastname",
+        "label": "Last Name",
+        "type": "text",
+        "required": False,
+        "max_length": 32,
+        "notes": "Required when isperson = T.",
+    },
+    "email": {
+        "internal_id": "email",
+        "label": "Email",
+        "type": "email",
+        "required": False,
+        "max_length": 254,
+        "notes": "Primary email for vendor communications and remittance.",
+    },
+    "phone": {
+        "internal_id": "phone",
+        "label": "Phone",
+        "type": "phone",
+        "required": False,
+        "max_length": 21,
+        "notes": "Main contact number.",
+    },
+    "fax": {
+        "internal_id": "fax",
+        "label": "Fax",
+        "type": "phone",
+        "required": False,
+        "max_length": 21,
+        "notes": "Fax number.",
+    },
+    "subsidiary": {
+        "internal_id": "subsidiary",
+        "label": "Subsidiary",
+        "type": "select",
+        "required": True,
+        "max_length": None,
+        "notes": "Required for OneWorld. Must reference an active subsidiary.",
+    },
+    "currency": {
+        "internal_id": "currency",
+        "label": "Currency",
+        "type": "select",
+        "required": False,
+        "max_length": None,
+        "notes": "Primary payment currency. 3-letter ISO 4217 (USD, EUR, etc.).",
+    },
+    "terms": {
+        "internal_id": "terms",
+        "label": "Payment Terms",
+        "type": "select",
+        "required": False,
+        "max_length": None,
+        "notes": "Must match Terms record name exactly.",
+    },
+    "expenseaccount": {
+        "internal_id": "expenseaccount",
+        "label": "Default Expense Account",
+        "type": "select",
+        "required": False,
+        "max_length": None,
+        "notes": "Default GL account for expense coding. Use account number or name.",
+    },
+    "payablesaccount": {
+        "internal_id": "payablesaccount",
+        "label": "Payables Account",
+        "type": "select",
+        "required": False,
+        "max_length": None,
+        "notes": "AP control account. Overrides the default AP account set on the subsidiary.",
+    },
+    "taxid": {
+        "internal_id": "taxid",
+        "label": "Tax ID / EIN",
+        "type": "text",
+        "required": False,
+        "max_length": 20,
+        "notes": "EIN or VAT number. For 1099 vendors this must be populated.",
+    },
+    "is1099eligible": {
+        "internal_id": "is1099eligible",
+        "label": "1099 Eligible",
+        "type": "checkbox",
+        "required": False,
+        "max_length": None,
+        "notes": "T if this vendor receives 1099-MISC at year end. Requires taxid.",
+    },
+    "creditlimit": {
+        "internal_id": "creditlimit",
+        "label": "Credit Limit",
+        "type": "currency",
+        "required": False,
+        "max_length": None,
+        "notes": "Purchasing credit limit. Numeric only.",
+    },
+    "category": {
+        "internal_id": "category",
+        "label": "Category",
+        "type": "select",
+        "required": False,
+        "max_length": None,
+        "notes": "Vendor Category list value. Pre-create before import.",
+    },
+    "isinactive": {
+        "internal_id": "isinactive",
+        "label": "Inactive",
+        "type": "checkbox",
+        "required": False,
+        "max_length": None,
+        "notes": "T to inactivate the vendor.",
+    },
+    "comments": {
+        "internal_id": "comments",
+        "label": "Notes",
+        "type": "textarea",
+        "required": False,
+        "max_length": None,
+        "notes": "Free-text vendor notes.",
+    },
+    "addr1": {
+        "internal_id": "addr1",
+        "label": "Address Line 1",
+        "type": "text",
+        "required": False,
+        "max_length": 150,
+        "notes": "Street address.",
+    },
+    "addr2": {
+        "internal_id": "addr2",
+        "label": "Address Line 2",
+        "type": "text",
+        "required": False,
+        "max_length": 150,
+        "notes": "Suite/unit number.",
+    },
+    "city": {
+        "internal_id": "city",
+        "label": "City",
+        "type": "text",
+        "required": False,
+        "max_length": 50,
+        "notes": "City.",
+    },
+    "state": {
+        "internal_id": "state",
+        "label": "State/Province",
+        "type": "text",
+        "required": False,
+        "max_length": 32,
+        "notes": "2-letter state code for US.",
+    },
+    "zip": {
+        "internal_id": "zip",
+        "label": "Zip/Postal Code",
+        "type": "text",
+        "required": False,
+        "max_length": 36,
+        "notes": "5-digit or ZIP+4.",
+    },
+    "country": {
+        "internal_id": "country",
+        "label": "Country",
+        "type": "select",
+        "required": False,
+        "max_length": None,
+        "notes": "2-letter ISO country code or NetSuite country name.",
+    },
+}
+
+# ---------------------------------------------------------------------------
+# Inventory Item
+# ---------------------------------------------------------------------------
+_INVENTORY_ITEM_FIELDS: dict[str, dict[str, Any]] = {
+    "itemid": {
+        "internal_id": "itemid",
+        "label": "Item Name/Number",
+        "type": "text",
+        "required": True,
+        "max_length": 60,
+        "notes": "SKU or item number. Must be unique. This is the primary identifier used in transactions.",
+    },
+    "externalid": {
+        "internal_id": "externalid",
+        "label": "External ID",
+        "type": "text",
+        "required": False,
+        "max_length": 255,
+        "notes": "Source system item ID for idempotent import.",
+    },
+    "displayname": {
+        "internal_id": "displayname",
+        "label": "Display Name / Code",
+        "type": "text",
+        "required": False,
+        "max_length": 60,
+        "notes": "Name shown to customers. If blank, itemid is used.",
+    },
+    "salesdescription": {
+        "internal_id": "salesdescription",
+        "label": "Sales Description",
+        "type": "textarea",
+        "required": False,
+        "max_length": 4000,
+        "notes": "Description shown on sales transactions (invoices, quotes).",
+    },
+    "purchasedescription": {
+        "internal_id": "purchasedescription",
+        "label": "Purchase Description",
+        "type": "textarea",
+        "required": False,
+        "max_length": 4000,
+        "notes": "Description shown on purchase transactions (POs, bills).",
+    },
+    "vendorname": {
+        "internal_id": "vendorname",
+        "label": "Preferred Vendor",
+        "type": "select",
+        "required": False,
+        "max_length": None,
+        "notes": "Must reference an active Vendor record. Use entityid or externalid.",
+    },
+    "cost": {
+        "internal_id": "cost",
+        "label": "Purchase Price",
+        "type": "currency",
+        "required": False,
+        "max_length": None,
+        "notes": "Default purchase cost. Numeric only. Do not include currency symbol.",
+    },
+    "salesprice": {
+        "internal_id": "salesprice",
+        "label": "Sales Price",
+        "type": "currency",
+        "required": False,
+        "max_length": None,
+        "notes": "Base sales price. Numeric only.",
+    },
+    "incomeaccount": {
+        "internal_id": "incomeaccount",
+        "label": "Income Account",
+        "type": "select",
+        "required": True,
+        "max_length": None,
+        "notes": "Revenue GL account. Required for items on sales transactions. Use account number or name.",
+    },
+    "cogsaccount": {
+        "internal_id": "cogsaccount",
+        "label": "COGS Account",
+        "type": "select",
+        "required": True,
+        "max_length": None,
+        "notes": "Cost of Goods Sold account. Required for inventory items.",
+    },
+    "assetaccount": {
+        "internal_id": "assetaccount",
+        "label": "Asset Account",
+        "type": "select",
+        "required": True,
+        "max_length": None,
+        "notes": "Inventory asset GL account. Required for inventory items. Must be an Inventory type account.",
+    },
+    "costingmethod": {
+        "internal_id": "costingmethod",
+        "label": "Costing Method",
+        "type": "select",
+        "required": False,
+        "max_length": None,
+        "notes": "AVERAGE, FIFO, LIFO, STANDARD, LOT. CRITICAL: Cannot be changed after transactions exist. Set correctly before first import.",
+    },
+    "unitstype": {
+        "internal_id": "unitstype",
+        "label": "Units Type",
+        "type": "select",
+        "required": False,
+        "max_length": None,
+        "notes": "Units of Measure type (e.g. Weight, Volume, Count). Must pre-exist in Setup > Items > Units of Measure.",
+    },
+    "stockunit": {
+        "internal_id": "stockunit",
+        "label": "Stock Unit",
+        "type": "select",
+        "required": False,
+        "max_length": None,
+        "notes": "Base stock unit within the units type (e.g., 'ea', 'lb', 'kg').",
+    },
+    "saleunit": {
+        "internal_id": "saleunit",
+        "label": "Sale Unit",
+        "type": "select",
+        "required": False,
+        "max_length": None,
+        "notes": "Unit used on sales transactions. Must belong to the same unitstype.",
+    },
+    "purchaseunit": {
+        "internal_id": "purchaseunit",
+        "label": "Purchase Unit",
+        "type": "select",
+        "required": False,
+        "max_length": None,
+        "notes": "Unit used on purchase orders. Must belong to the same unitstype.",
+    },
+    "location": {
+        "internal_id": "location",
+        "label": "Location",
+        "type": "select",
+        "required": False,
+        "max_length": None,
+        "notes": "Default stocking location/warehouse. Must be active Location record.",
+    },
+    "subsidiary": {
+        "internal_id": "subsidiary",
+        "label": "Subsidiary",
+        "type": "select",
+        "required": False,
+        "max_length": None,
+        "notes": "For multi-subsidiary use. Can be semicolon-delimited list.",
+    },
+    "taxschedule": {
+        "internal_id": "taxschedule",
+        "label": "Tax Schedule",
+        "type": "select",
+        "required": False,
+        "max_length": None,
+        "notes": "Tax Schedule for sales. Must pre-exist in tax configuration.",
+    },
+    "isinactive": {
+        "internal_id": "isinactive",
+        "label": "Inactive",
+        "type": "checkbox",
+        "required": False,
+        "max_length": None,
+        "notes": "T to mark item inactive.",
+    },
+    "isclosed": {
+        "internal_id": "isclosed",
+        "label": "Closed",
+        "type": "checkbox",
+        "required": False,
+        "max_length": None,
+        "notes": "T to close item from further purchases/sales.",
+    },
+    "weight": {
+        "internal_id": "weight",
+        "label": "Weight",
+        "type": "decimal",
+        "required": False,
+        "max_length": None,
+        "notes": "Shipping weight. Numeric value in weightunit.",
+    },
+    "weightunit": {
+        "internal_id": "weightunit",
+        "label": "Weight Unit",
+        "type": "select",
+        "required": False,
+        "max_length": None,
+        "notes": "lb, oz, kg, g",
+    },
+    "upccode": {
+        "internal_id": "upccode",
+        "label": "UPC Code",
+        "type": "text",
+        "required": False,
+        "max_length": 100,
+        "notes": "Barcode / UPC-A code. 12 digits for standard UPC-A.",
+    },
+    "mpn": {
+        "internal_id": "mpn",
+        "label": "MPN",
+        "type": "text",
+        "required": False,
+        "max_length": 100,
+        "notes": "Manufacturer Part Number.",
+    },
+    "department": {
+        "internal_id": "department",
+        "label": "Department",
+        "type": "select",
+        "required": False,
+        "max_length": None,
+        "notes": "Default department for GL coding.",
+    },
+    "class": {
+        "internal_id": "class",
+        "label": "Class",
+        "type": "select",
+        "required": False,
+        "max_length": None,
+        "notes": "NetSuite Class (product line, brand, etc.).",
+    },
+}
+
+# ---------------------------------------------------------------------------
+# Invoice (Transaction)
+# ---------------------------------------------------------------------------
+_INVOICE_FIELDS: dict[str, dict[str, Any]] = {
+    "externalid": {
+        "internal_id": "externalid",
+        "label": "External ID",
+        "type": "text",
+        "required": False,
+        "max_length": 255,
+        "notes": "Source system invoice ID. Required for deduplication on re-import.",
+    },
+    "entity": {
+        "internal_id": "entity",
+        "label": "Customer",
+        "type": "select",
+        "required": True,
+        "max_length": None,
+        "notes": "Customer entity. Must reference an existing Customer record. Use entityid or externalid.",
+    },
+    "trandate": {
+        "internal_id": "trandate",
+        "label": "Date",
+        "type": "date",
+        "required": True,
+        "max_length": None,
+        "notes": "Transaction date. Format: MM/DD/YYYY. NetSuite CSV Import requires this exact format.",
+    },
+    "duedate": {
+        "internal_id": "duedate",
+        "label": "Due Date",
+        "type": "date",
+        "required": False,
+        "max_length": None,
+        "notes": "Payment due date. Format: MM/DD/YYYY. Calculated from terms if not provided.",
+    },
+    "tranid": {
+        "internal_id": "tranid",
+        "label": "Invoice #",
+        "type": "text",
+        "required": False,
+        "max_length": 21,
+        "notes": "Invoice number. If provided must be unique. Leave blank for auto-numbering.",
+    },
+    "otherrefnum": {
+        "internal_id": "otherrefnum",
+        "label": "Other Reference Number / PO #",
+        "type": "text",
+        "required": False,
+        "max_length": 100,
+        "notes": "Customer PO reference number.",
+    },
+    "terms": {
+        "internal_id": "terms",
+        "label": "Terms",
+        "type": "select",
+        "required": False,
+        "max_length": None,
+        "notes": "Payment terms. Must match existing Terms record.",
+    },
+    "memo": {
+        "internal_id": "memo",
+        "label": "Memo",
+        "type": "text",
+        "required": False,
+        "max_length": 999,
+        "notes": "Transaction-level memo/note.",
+    },
+    "department": {
+        "internal_id": "department",
+        "label": "Department",
+        "type": "select",
+        "required": False,
+        "max_length": None,
+        "notes": "Header-level department override.",
+    },
+    "class": {
+        "internal_id": "class",
+        "label": "Class",
+        "type": "select",
+        "required": False,
+        "max_length": None,
+        "notes": "Header-level class override.",
+    },
+    "location": {
+        "internal_id": "location",
+        "label": "Location",
+        "type": "select",
+        "required": False,
+        "max_length": None,
+        "notes": "Header-level location.",
+    },
+    "subsidiary": {
+        "internal_id": "subsidiary",
+        "label": "Subsidiary",
+        "type": "select",
+        "required": True,
+        "max_length": None,
+        "notes": "Required for OneWorld. Inherited from customer if not specified.",
+    },
+    "currency": {
+        "internal_id": "currency",
+        "label": "Currency",
+        "type": "select",
+        "required": False,
+        "max_length": None,
+        "notes": "Transaction currency. 3-letter ISO code.",
+    },
+    "exchangerate": {
+        "internal_id": "exchangerate",
+        "label": "Exchange Rate",
+        "type": "decimal",
+        "required": False,
+        "max_length": None,
+        "notes": "Exchange rate to base currency. Required for non-base currency transactions.",
+    },
+    # Line item fields
+    "item": {
+        "internal_id": "item",
+        "label": "Item",
+        "type": "select",
+        "required": False,
+        "max_length": None,
+        "notes": "Line item. Must reference existing Item record. For service items use NonInventoryItem.",
+    },
+    "quantity": {
+        "internal_id": "quantity",
+        "label": "Quantity",
+        "type": "decimal",
+        "required": False,
+        "max_length": None,
+        "notes": "Line item quantity. Numeric. Required when item is specified.",
+    },
+    "rate": {
+        "internal_id": "rate",
+        "label": "Unit Price",
+        "type": "currency",
+        "required": False,
+        "max_length": None,
+        "notes": "Per-unit price. Numeric only.",
+    },
+    "amount": {
+        "internal_id": "amount",
+        "label": "Amount",
+        "type": "currency",
+        "required": False,
+        "max_length": None,
+        "notes": "Line total (quantity × rate). If provided overrides calculated amount.",
+    },
+    "description": {
+        "internal_id": "description",
+        "label": "Description",
+        "type": "text",
+        "required": False,
+        "max_length": 999,
+        "notes": "Line-level description.",
+    },
+    "taxcode": {
+        "internal_id": "taxcode",
+        "label": "Tax Code",
+        "type": "select",
+        "required": False,
+        "max_length": None,
+        "notes": "Line-level tax code. Must be preconfigured.",
+    },
+    "taxrate1": {
+        "internal_id": "taxrate1",
+        "label": "Tax Rate",
+        "type": "decimal",
+        "required": False,
+        "max_length": None,
+        "notes": "Tax rate as percentage (e.g., 8.25 for 8.25%).",
+    },
+}
+
+# ---------------------------------------------------------------------------
+# Employee
+# ---------------------------------------------------------------------------
+_EMPLOYEE_FIELDS: dict[str, dict[str, Any]] = {
+    "entityid": {
+        "internal_id": "entityid",
+        "label": "Employee ID",
+        "type": "text",
+        "required": False,
+        "max_length": 40,
+        "notes": "Auto-generated. Format is typically 'Firstname Lastname'.",
+    },
+    "externalid": {
+        "internal_id": "externalid",
+        "label": "External ID",
+        "type": "text",
+        "required": False,
+        "max_length": 255,
+        "notes": "HR system employee ID. Use for idempotent import.",
+    },
+    "firstname": {
+        "internal_id": "firstname",
+        "label": "First Name",
+        "type": "text",
+        "required": True,
+        "max_length": 32,
+        "notes": "Legal first name.",
+    },
+    "middlename": {
+        "internal_id": "middlename",
+        "label": "Middle Name",
+        "type": "text",
+        "required": False,
+        "max_length": 32,
+        "notes": "Middle name or initial.",
+    },
+    "lastname": {
+        "internal_id": "lastname",
+        "label": "Last Name",
+        "type": "text",
+        "required": True,
+        "max_length": 32,
+        "notes": "Legal last name/surname.",
+    },
+    "email": {
+        "internal_id": "email",
+        "label": "Email",
+        "type": "email",
+        "required": True,
+        "max_length": 254,
+        "notes": "Work email. Used as NetSuite login if granting portal access.",
+    },
+    "phone": {
+        "internal_id": "phone",
+        "label": "Office Phone",
+        "type": "phone",
+        "required": False,
+        "max_length": 21,
+        "notes": "Work phone number.",
+    },
+    "mobilephone": {
+        "internal_id": "mobilephone",
+        "label": "Mobile Phone",
+        "type": "phone",
+        "required": False,
+        "max_length": 21,
+        "notes": "Mobile phone number.",
+    },
+    "hiredate": {
+        "internal_id": "hiredate",
+        "label": "Hire Date",
+        "type": "date",
+        "required": False,
+        "max_length": None,
+        "notes": "Date of hire. Format: MM/DD/YYYY.",
+    },
+    "releasedate": {
+        "internal_id": "releasedate",
+        "label": "Release Date",
+        "type": "date",
+        "required": False,
+        "max_length": None,
+        "notes": "Termination date. Format: MM/DD/YYYY.",
+    },
+    "department": {
+        "internal_id": "department",
+        "label": "Department",
+        "type": "select",
+        "required": False,
+        "max_length": None,
+        "notes": "Department record. Must exist before import.",
+    },
+    "location": {
+        "internal_id": "location",
+        "label": "Location",
+        "type": "select",
+        "required": False,
+        "max_length": None,
+        "notes": "Work location record.",
+    },
+    "subsidiary": {
+        "internal_id": "subsidiary",
+        "label": "Subsidiary",
+        "type": "select",
+        "required": True,
+        "max_length": None,
+        "notes": "Required for OneWorld.",
+    },
+    "supervisor": {
+        "internal_id": "supervisor",
+        "label": "Supervisor",
+        "type": "select",
+        "required": False,
+        "max_length": None,
+        "notes": "Must reference an active Employee record. Load employees before setting supervisor references.",
+    },
+    "title": {
+        "internal_id": "title",
+        "label": "Job Title",
+        "type": "text",
+        "required": False,
+        "max_length": 99,
+        "notes": "Job title / position.",
+    },
+    "employeetype": {
+        "internal_id": "employeetype",
+        "label": "Employee Type",
+        "type": "select",
+        "required": False,
+        "max_length": None,
+        "notes": "Full-Time, Part-Time, Contractor, etc. Must match existing list value.",
+    },
+    "employeestatus": {
+        "internal_id": "employeestatus",
+        "label": "Employee Status",
+        "type": "select",
+        "required": False,
+        "max_length": None,
+        "notes": "Active, Terminated, On Leave, etc.",
+    },
+    "issalesrep": {
+        "internal_id": "issalesrep",
+        "label": "Sales Rep",
+        "type": "checkbox",
+        "required": False,
+        "max_length": None,
+        "notes": "T if this employee should appear in Sales Rep dropdown on customer/transaction records.",
+    },
+    "isinactive": {
+        "internal_id": "isinactive",
+        "label": "Inactive",
+        "type": "checkbox",
+        "required": False,
+        "max_length": None,
+        "notes": "T to inactivate the employee record.",
+    },
+    "gender": {
+        "internal_id": "gender",
+        "label": "Gender",
+        "type": "select",
+        "required": False,
+        "max_length": None,
+        "notes": "Male, Female. Some environments may have additional options.",
+    },
+    "birthdaymmdd": {
+        "internal_id": "birthdaymmdd",
+        "label": "Birthday",
+        "type": "text",
+        "required": False,
+        "max_length": 5,
+        "notes": "Format: MM/DD (no year for privacy).",
+    },
+    "comments": {
+        "internal_id": "comments",
+        "label": "Notes",
+        "type": "textarea",
+        "required": False,
+        "max_length": None,
+        "notes": "HR notes on the employee record.",
+    },
+    "addr1": {
+        "internal_id": "addr1",
+        "label": "Address Line 1",
+        "type": "text",
+        "required": False,
+        "max_length": 150,
+        "notes": "Home or work address.",
+    },
+    "city": {
+        "internal_id": "city",
+        "label": "City",
+        "type": "text",
+        "required": False,
+        "max_length": 50,
+        "notes": "City.",
+    },
+    "state": {
+        "internal_id": "state",
+        "label": "State",
+        "type": "text",
+        "required": False,
+        "max_length": 32,
+        "notes": "2-letter state code.",
+    },
+    "zip": {
+        "internal_id": "zip",
+        "label": "Zip",
+        "type": "text",
+        "required": False,
+        "max_length": 36,
+        "notes": "Postal code.",
+    },
+    "country": {
+        "internal_id": "country",
+        "label": "Country",
+        "type": "select",
+        "required": False,
+        "max_length": None,
+        "notes": "Country. 2-letter ISO code.",
+    },
+}
+
+# ---------------------------------------------------------------------------
+# Journal Entry
+# ---------------------------------------------------------------------------
+_JOURNAL_ENTRY_FIELDS: dict[str, dict[str, Any]] = {
+    "externalid": {
+        "internal_id": "externalid",
+        "label": "External ID",
+        "type": "text",
+        "required": False,
+        "max_length": 255,
+        "notes": "Source journal ID.",
+    },
+    "trandate": {
+        "internal_id": "trandate",
+        "label": "Date",
+        "type": "date",
+        "required": True,
+        "max_length": None,
+        "notes": "Journal date. MM/DD/YYYY.",
+    },
+    "tranid": {
+        "internal_id": "tranid",
+        "label": "Journal Number",
+        "type": "text",
+        "required": False,
+        "max_length": 21,
+        "notes": "Journal entry reference number. Auto-assigned if blank.",
+    },
+    "memo": {
+        "internal_id": "memo",
+        "label": "Memo",
+        "type": "text",
+        "required": False,
+        "max_length": 999,
+        "notes": "Journal description.",
+    },
+    "subsidiary": {
+        "internal_id": "subsidiary",
+        "label": "Subsidiary",
+        "type": "select",
+        "required": True,
+        "max_length": None,
+        "notes": "Required for OneWorld. All lines of a journal must belong to the same subsidiary (unless intercompany).",
+    },
+    "currency": {
+        "internal_id": "currency",
+        "label": "Currency",
+        "type": "select",
+        "required": False,
+        "max_length": None,
+        "notes": "Journal currency.",
+    },
+    "account": {
+        "internal_id": "account",
+        "label": "Account",
+        "type": "select",
+        "required": True,
+        "max_length": None,
+        "notes": "GL account for the journal line. Use account number or name.",
+    },
+    "debit": {
+        "internal_id": "debit",
+        "label": "Debit",
+        "type": "currency",
+        "required": False,
+        "max_length": None,
+        "notes": "Debit amount. Either debit or credit must be populated per line, not both.",
+    },
+    "credit": {
+        "internal_id": "credit",
+        "label": "Credit",
+        "type": "currency",
+        "required": False,
+        "max_length": None,
+        "notes": "Credit amount. Either debit or credit must be populated per line, not both.",
+    },
+    "department": {
+        "internal_id": "department",
+        "label": "Department",
+        "type": "select",
+        "required": False,
+        "max_length": None,
+        "notes": "Line-level department.",
+    },
+    "class": {
+        "internal_id": "class",
+        "label": "Class",
+        "type": "select",
+        "required": False,
+        "max_length": None,
+        "notes": "Line-level class.",
+    },
+    "location": {
+        "internal_id": "location",
+        "label": "Location",
+        "type": "select",
+        "required": False,
+        "max_length": None,
+        "notes": "Line-level location.",
+    },
+    "entity": {
+        "internal_id": "entity",
+        "label": "Name",
+        "type": "select",
+        "required": False,
+        "max_length": None,
+        "notes": "Customer, Vendor, or Employee for the journal line.",
+    },
+    "linememo": {
+        "internal_id": "linememo",
+        "label": "Line Memo",
+        "type": "text",
+        "required": False,
+        "max_length": 999,
+        "notes": "Per-line memo.",
+    },
+}
+
+# ---------------------------------------------------------------------------
+# Sales Order
+# ---------------------------------------------------------------------------
+_SALES_ORDER_FIELDS: dict[str, dict[str, Any]] = {
+    "externalid": {
+        "internal_id": "externalid",
+        "label": "External ID",
+        "type": "text",
+        "required": False,
+        "max_length": 255,
+        "notes": "Source system order ID.",
+    },
+    "entity": {
+        "internal_id": "entity",
+        "label": "Customer",
+        "type": "select",
+        "required": True,
+        "max_length": None,
+        "notes": "Must reference active Customer record.",
+    },
+    "trandate": {
+        "internal_id": "trandate",
+        "label": "Date",
+        "type": "date",
+        "required": True,
+        "max_length": None,
+        "notes": "Order date. MM/DD/YYYY.",
+    },
+    "tranid": {
+        "internal_id": "tranid",
+        "label": "Order #",
+        "type": "text",
+        "required": False,
+        "max_length": 21,
+        "notes": "Sales order number.",
+    },
+    "otherrefnum": {
+        "internal_id": "otherrefnum",
+        "label": "PO #",
+        "type": "text",
+        "required": False,
+        "max_length": 100,
+        "notes": "Customer purchase order number.",
+    },
+    "terms": {
+        "internal_id": "terms",
+        "label": "Terms",
+        "type": "select",
+        "required": False,
+        "max_length": None,
+        "notes": "Payment terms.",
+    },
+    "orderstatus": {
+        "internal_id": "orderstatus",
+        "label": "Status",
+        "type": "select",
+        "required": False,
+        "max_length": None,
+        "notes": "Pending Approval, Pending Fulfillment, Partially Fulfilled, Closed, Cancelled.",
+    },
+    "memo": {
+        "internal_id": "memo",
+        "label": "Memo",
+        "type": "text",
+        "required": False,
+        "max_length": 999,
+        "notes": "Order memo.",
+    },
+    "subsidiary": {
+        "internal_id": "subsidiary",
+        "label": "Subsidiary",
+        "type": "select",
+        "required": True,
+        "max_length": None,
+        "notes": "Required for OneWorld.",
+    },
+    "currency": {
+        "internal_id": "currency",
+        "label": "Currency",
+        "type": "select",
+        "required": False,
+        "max_length": None,
+        "notes": "Order currency.",
+    },
+    "item": {
+        "internal_id": "item",
+        "label": "Item",
+        "type": "select",
+        "required": True,
+        "max_length": None,
+        "notes": "Line item. Must exist in NetSuite.",
+    },
+    "quantity": {
+        "internal_id": "quantity",
+        "label": "Quantity",
+        "type": "decimal",
+        "required": True,
+        "max_length": None,
+        "notes": "Order quantity.",
+    },
+    "rate": {
+        "internal_id": "rate",
+        "label": "Unit Price",
+        "type": "currency",
+        "required": False,
+        "max_length": None,
+        "notes": "Selling price per unit.",
+    },
+    "amount": {
+        "internal_id": "amount",
+        "label": "Amount",
+        "type": "currency",
+        "required": False,
+        "max_length": None,
+        "notes": "Line total.",
+    },
+    "department": {
+        "internal_id": "department",
+        "label": "Department",
+        "type": "select",
+        "required": False,
+        "max_length": None,
+        "notes": "Header or line department.",
+    },
+    "location": {
+        "internal_id": "location",
+        "label": "Location",
+        "type": "select",
+        "required": False,
+        "max_length": None,
+        "notes": "Fulfillment location.",
+    },
+}
+
+# ---------------------------------------------------------------------------
+# Contact
+# ---------------------------------------------------------------------------
+_CONTACT_FIELDS: dict[str, dict[str, Any]] = {
+    "externalid": {
+        "internal_id": "externalid",
+        "label": "External ID",
+        "type": "text",
+        "required": False,
+        "max_length": 255,
+        "notes": "Source system contact ID.",
+    },
+    "firstname": {
+        "internal_id": "firstname",
+        "label": "First Name",
+        "type": "text",
+        "required": True,
+        "max_length": 32,
+        "notes": "Contact first name.",
+    },
+    "lastname": {
+        "internal_id": "lastname",
+        "label": "Last Name",
+        "type": "text",
+        "required": True,
+        "max_length": 32,
+        "notes": "Contact last name.",
+    },
+    "title": {
+        "internal_id": "title",
+        "label": "Title",
+        "type": "text",
+        "required": False,
+        "max_length": 99,
+        "notes": "Job title.",
+    },
+    "email": {
+        "internal_id": "email",
+        "label": "Email",
+        "type": "email",
+        "required": False,
+        "max_length": 254,
+        "notes": "Primary email.",
+    },
+    "phone": {
+        "internal_id": "phone",
+        "label": "Phone",
+        "type": "phone",
+        "required": False,
+        "max_length": 21,
+        "notes": "Main phone.",
+    },
+    "mobilephone": {
+        "internal_id": "mobilephone",
+        "label": "Mobile",
+        "type": "phone",
+        "required": False,
+        "max_length": 21,
+        "notes": "Mobile number.",
+    },
+    "company": {
+        "internal_id": "company",
+        "label": "Company",
+        "type": "select",
+        "required": False,
+        "max_length": None,
+        "notes": "Parent Customer or Vendor. Must reference an existing entity record.",
+    },
+    "subsidiary": {
+        "internal_id": "subsidiary",
+        "label": "Subsidiary",
+        "type": "select",
+        "required": False,
+        "max_length": None,
+        "notes": "Required if company is not specified for OneWorld.",
+    },
+    "isinactive": {
+        "internal_id": "isinactive",
+        "label": "Inactive",
+        "type": "checkbox",
+        "required": False,
+        "max_length": None,
+        "notes": "T to inactivate.",
+    },
+    "comments": {
+        "internal_id": "comments",
+        "label": "Comments",
+        "type": "textarea",
+        "required": False,
+        "max_length": None,
+        "notes": "Notes.",
+    },
+}
+
+# ---------------------------------------------------------------------------
+# Master dict + helpers
+# ---------------------------------------------------------------------------
+
+NETSUITE_FIELDS: dict[str, dict[str, dict[str, Any]]] = {
+    "customer": _CUSTOMER_FIELDS,
+    "vendor": _VENDOR_FIELDS,
+    "inventoryitem": _INVENTORY_ITEM_FIELDS,
+    "invoice": _INVOICE_FIELDS,
+    "employee": _EMPLOYEE_FIELDS,
+    "journalentry": _JOURNAL_ENTRY_FIELDS,
+    "salesorder": _SALES_ORDER_FIELDS,
+    "contact": _CONTACT_FIELDS,
+}
+
+# Friendly aliases that map to the canonical keys above
+_ALIASES: dict[str, str] = {
+    "customers": "customer",
+    "vendors": "vendor",
+    "supplier": "vendor",
+    "suppliers": "vendor",
+    "inventory": "inventoryitem",
+    "item": "inventoryitem",
+    "items": "inventoryitem",
+    "invoices": "invoice",
+    "journal": "journalentry",
+    "je": "journalentry",
+    "sales order": "salesorder",
+    "salesorders": "salesorder",
+    "employees": "employee",
+    "contacts": "contact",
+}
+
+
+def get_record_types() -> list[str]:
+    """Return the list of supported NetSuite record type keys."""
+    return list(NETSUITE_FIELDS.keys())
+
+
+def resolve_record_type(record_type: str) -> str | None:
+    """Return the canonical record type key, or None if not found."""
+    key = record_type.lower().strip().replace(" ", "")
+    if key in NETSUITE_FIELDS:
+        return key
+    return _ALIASES.get(key)
+
+
+def get_field_info(record_type: str, field_id: str | None = None) -> dict[str, Any] | None:
+    """
+    Return field info for a specific record type + field.
+
+    If field_id is None, returns the entire field dict for that record type.
+    Returns None if record_type or field_id is not found.
+    """
+    canonical = resolve_record_type(record_type)
+    if canonical is None:
+        return None
+    fields = NETSUITE_FIELDS[canonical]
+    if field_id is None:
+        return fields  # type: ignore[return-value]
+    return fields.get(field_id.lower().strip())
+
+
+def get_required_fields(record_type: str) -> list[str]:
+    """Return list of required field internal_ids for a record type."""
+    canonical = resolve_record_type(record_type)
+    if canonical is None:
+        return []
+    return [
+        fid for fid, fdef in NETSUITE_FIELDS[canonical].items() if fdef.get("required")
+    ]
+
+
+def format_field_summary(record_type: str) -> str:
+    """Return a human-readable summary of fields for a record type."""
+    canonical = resolve_record_type(record_type)
+    if canonical is None:
+        return f"Unknown record type: {record_type}"
+
+    lines = [f"NetSuite {canonical.upper()} Fields:", ""]
+    fields = NETSUITE_FIELDS[canonical]
+    for fid, fdef in fields.items():
+        req = " [REQUIRED]" if fdef.get("required") else ""
+        lines.append(f"  {fid}{req}")
+        lines.append(f"    Label: {fdef['label']}")
+        lines.append(f"    Type:  {fdef['type']}")
+        if fdef.get("max_length"):
+            lines.append(f"    Max Length: {fdef['max_length']}")
+        lines.append(f"    Notes: {fdef['notes']}")
+        lines.append("")
+    return "\n".join(lines)
