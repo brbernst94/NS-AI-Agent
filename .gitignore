@@ -45,8 +45,9 @@ env/
 # Note: data/ folder IS tracked so knowledge persists across devices
 # Large data files should be managed separately if repo gets too large
 
-# Streamlit
-.streamlit/
+# Streamlit (but allow config.toml for production)
+.streamlit/*
+!.streamlit/config.toml
 *.streamlit
 
 # Logs
