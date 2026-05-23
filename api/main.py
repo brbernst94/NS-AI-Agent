@@ -55,6 +55,10 @@ def create_app() -> FastAPI:
         data_dir = os.getenv("DATA_DIR", "./data")
         Path(data_dir).mkdir(parents=True, exist_ok=True)
 
+        # Restore knowledge base from GitHub before initializing
+        from agent.github_sync import restore_from_github
+        restore_from_github()
+
         logger.info("Initializing NS-AI-Agent...")
         agent = NSMigrationAgent(data_dir=data_dir)
         app.state.agent = agent

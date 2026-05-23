@@ -29,6 +29,42 @@ def _run(cmd: list[str], cwd: str = "/app") -> tuple[int, str]:
         return 1, str(exc)
 
 
+def restore_from_github() -> bool:
+    """
+    Pull the latest data/ folder from GitHub on startup.
+
+    This restores the knowledge base and crawler state that was
+    saved from a previous session, so nothing is lost on redeploy.
+    Silently skips if GITHUB_TOKEN is not set.
+    """
+    if not GITHUB_TOKEN:
+        logger.debug("GITHUB_TOKEN not set — skipping GitHub restore")
+        return False
+
+    logger.info("Restoring knowledge base from GitHub...")
+
+    remote_url = f"https://x-access-token:{GITHUB_TOKEN}@github.com/{GITHUB_REPO}.git"
+
+    _run(["git", "config", "user.email", "agent@ns-ai-agent.app"])
+    _run(["git", "config", "user.name", "NS-AI-Agent"])
+    _run(["git", "remote", "set-url", "origin", remote_url])
+
+    # Fetch latest from remote
+    code, out = _run(["git", "fetch", "origin", GITHUB_BRANCH])
+    if code != 0:
+        logger.warning("git fetch failed: %s", out)
+        return False
+
+    # Checkout just the data/ folder from remote
+    code, out = _run(["git", "checkout", f"origin/{GITHUB_BRANCH}", "--", "data/"])
+    if code != 0:
+        logger.warning("git checkout data/ failed: %s", out)
+        return False
+
+    logger.info("Knowledge base restored from GitHub successfully")
+    return True
+
+
 def sync_to_github(reason: str = "Knowledge base updated") -> bool:
     """
     Commit and push the data/ folder to GitHub.
