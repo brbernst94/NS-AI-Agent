@@ -249,19 +249,21 @@ def render_knowledge_tab() -> None:
         )
 
         if ingest_method == "Upload File":
-            uploaded = st.file_uploader(
-                "Upload a document",
+            uploaded_files = st.file_uploader(
+                "Upload documents",
                 type=["pdf", "docx", "doc", "csv", "xlsx", "xls", "txt", "md"],
                 help="Supported: PDF, Word (.docx), CSV, Excel (.xlsx), plain text",
+                accept_multiple_files=True,
             )
-            if uploaded and st.button("Ingest File", type="primary"):
-                with st.spinner(f"Ingesting {uploaded.name}..."):
-                    result = api_post(
-                        "/knowledge/ingest/file",
-                        files={"file": (uploaded.name, uploaded.getvalue(), uploaded.type)},
-                    )
-                if result:
-                    st.success(f"{result['message']}")
+            if uploaded_files and st.button("Ingest Files", type="primary"):
+                for uploaded in uploaded_files:
+                    with st.spinner(f"Ingesting {uploaded.name}..."):
+                        result = api_post(
+                            "/knowledge/ingest/file",
+                            files={"file": (uploaded.name, uploaded.getvalue(), uploaded.type)},
+                        )
+                    if result:
+                        st.success(f"{result['message']}")
 
         elif ingest_method == "Enter URL":
             url = st.text_input("URL", placeholder="https://docs.oracle.com/en/cloud/saas/netsuite/...")
