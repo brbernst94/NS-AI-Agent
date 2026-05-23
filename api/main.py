@@ -47,7 +47,10 @@ def create_app() -> FastAPI:
     @app.on_event("startup")
     async def startup() -> None:
         """Initialize the agent, database, and knowledge base on startup."""
+        import asyncio
+        import threading
         from agent.core import NSMigrationAgent
+        from knowledge_base.crawler import NetSuiteCrawler
 
         data_dir = os.getenv("DATA_DIR", "./data")
         Path(data_dir).mkdir(parents=True, exist_ok=True)
@@ -56,6 +59,25 @@ def create_app() -> FastAPI:
         agent = NSMigrationAgent(data_dir=data_dir)
         app.state.agent = agent
         logger.info("NS-AI-Agent ready. Knowledge base: %d documents.", agent.knowledge_index.count())
+
+        # Crawl NetSuite docs in background thread so startup isn't blocked
+        def run_crawler() -> None:
+            try:
+                crawler = NetSuiteCrawler(
+                    knowledge_index=agent.knowledge_index,
+                    db_path=os.path.join(data_dir, "crawler.db"),
+                )
+                new_chunks = crawler.crawl(max_pages=200)
+                if new_chunks > 0:
+                    logger.info("NetSuite docs crawl added %d new chunks", new_chunks)
+                    from agent.github_sync import sync_to_github
+                    sync_to_github("Auto-crawled NetSuite documentation")
+            except Exception as exc:
+                logger.warning("Doc crawler failed (non-fatal): %s", exc)
+
+        thread = threading.Thread(target=run_crawler, daemon=True, name="netsuite-crawler")
+        thread.start()
+        logger.info("NetSuite documentation crawler started in background")
 
     @app.on_event("shutdown")
     async def shutdown() -> None:
