@@ -56,8 +56,11 @@ def create_app() -> FastAPI:
         Path(data_dir).mkdir(parents=True, exist_ok=True)
 
         # Restore knowledge base from GitHub before initializing
-        from agent.github_sync import restore_from_github
-        restore_from_github()
+        try:
+            from agent.github_sync import restore_from_github
+            restore_from_github()
+        except Exception as exc:
+            logger.warning("GitHub restore failed (non-fatal): %s", exc)
 
         logger.info("Initializing NS-AI-Agent...")
         agent = NSMigrationAgent(data_dir=data_dir)
