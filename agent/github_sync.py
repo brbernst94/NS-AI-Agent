@@ -12,71 +12,77 @@ logger = logging.getLogger(__name__)
 
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 GITHUB_REPO = os.getenv("GITHUB_REPO", "brbernst94/NS-AI-Agent")
-GITHUB_BRANCH = os.getenv("GITHUB_BRANCH", "claude/funny-ride-Oq16Q")
+# DATA_BRANCH is a separate branch from the code branch Railway watches.
+# Pushing data here NEVER triggers a Railway redeploy.
+DATA_BRANCH = os.getenv("GITHUB_DATA_BRANCH", "ns-ai-data")
 WORKDIR = "/app"
 
+# Separate git directory used exclusively for data syncing.
+# GIT_DIR points here, GIT_WORK_TREE points to /app.
+# This keeps data commits completely isolated from the code branch.
+_DATA_GIT_DIR = "/tmp/ns-ai-data-git"
+
 # Serialises concurrent sync calls so multiple simultaneous file uploads
-# don't race each other on push. The second caller in the queue will almost
-# always find "nothing new to commit" because the first already pushed
-# everything that was in ChromaDB at that point.
+# don't race each other on push.
 _sync_lock = threading.Lock()
 
 
-def _run(cmd: list[str], cwd: str = WORKDIR) -> tuple[int, str]:
+def _data_run(cmd: list[str]) -> tuple[int, str]:
+    """Run a git command using the data-only git directory."""
+    env = os.environ.copy()
+    env["GIT_DIR"] = _DATA_GIT_DIR
+    env["GIT_WORK_TREE"] = WORKDIR
     try:
-        result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=120)
+        result = subprocess.run(
+            cmd, env=env, cwd=WORKDIR, capture_output=True, text=True, timeout=120
+        )
         return result.returncode, result.stdout + result.stderr
     except Exception as exc:
         return 1, str(exc)
 
 
-def _setup_repo() -> None:
-    """Initialise git repo and set remote URL. Never touches working-tree files."""
+def _setup_data_repo() -> None:
+    """Initialise the data git directory and configure the remote."""
     remote_url = f"https://x-access-token:{GITHUB_TOKEN}@github.com/{GITHUB_REPO}.git"
-    _run(["git", "config", "user.email", "agent@ns-ai-agent.app"])
-    _run(["git", "config", "user.name", "NS-AI-Agent"])
-
-    if not os.path.exists(os.path.join(WORKDIR, ".git")):
-        logger.info("No .git found — initialising repo")
-        _run(["git", "init"])
-        _run(["git", "remote", "add", "origin", remote_url])
-    else:
-        _run(["git", "remote", "set-url", "origin", remote_url])
-
-
-def _local_branch_exists() -> bool:
-    code, _ = _run(["git", "rev-parse", "--verify", f"refs/heads/{GITHUB_BRANCH}"])
-    return code == 0
+    os.makedirs(_DATA_GIT_DIR, exist_ok=True)
+    _data_run(["git", "init"])
+    _data_run(["git", "config", "user.email", "agent@ns-ai-agent.app"])
+    _data_run(["git", "config", "user.name", "NS-AI-Agent"])
+    code, _ = _data_run(["git", "remote", "set-url", "origin", remote_url])
+    if code != 0:
+        _data_run(["git", "remote", "add", "origin", remote_url])
 
 
 def restore_from_github() -> bool:
-    """Pull data/ from GitHub on startup to restore the previous knowledge base."""
+    """Pull data/ from the data branch on startup to restore knowledge base."""
     if not GITHUB_TOKEN:
         logger.debug("GITHUB_TOKEN not set — skipping restore")
         return False
 
-    logger.info("Restoring knowledge base from GitHub...")
-    _setup_repo()
+    logger.info("Restoring knowledge base from GitHub [%s]...", DATA_BRANCH)
+    _setup_data_repo()
 
-    code, out = _run(["git", "fetch", "origin", GITHUB_BRANCH])
+    code, out = _data_run(["git", "fetch", "origin", DATA_BRANCH])
     if code != 0:
-        logger.warning("git fetch failed during restore: %s", out)
+        logger.info("No data branch yet (first run) — starting with empty knowledge base")
+        return True  # Not an error on first deploy
+
+    code, out = _data_run(["git", "checkout", f"origin/{DATA_BRANCH}", "--", "data/"])
+    if code != 0:
+        logger.warning("git checkout data/ failed: %s", out)
         return False
 
-    # Create/reset local branch from remote. At startup data/ is empty
-    # (Docker image has no ChromaDB files), so the checkout is safe.
-    _run(["git", "checkout", "-B", GITHUB_BRANCH, f"origin/{GITHUB_BRANCH}"])
-
-    logger.info("Knowledge base restored from GitHub")
+    logger.info("Knowledge base restored from GitHub [%s]", DATA_BRANCH)
     return True
 
 
 def sync_to_github(reason: str = "Knowledge base updated") -> bool:
-    """Commit and push the data/ folder to GitHub.
+    """Commit and push data/ to the dedicated data branch.
 
-    Thread-safe: a lock serialises concurrent calls so multi-file uploads
-    don't produce simultaneous pushes that reject each other. Later callers
-    typically exit as no-ops once the first sync commits all pending changes.
+    Data is pushed to DATA_BRANCH (default: ns-ai-data), NOT the code branch
+    Railway watches. This permanently stops auto-syncs from triggering deploys.
+
+    Thread-safe: lock serialises concurrent calls from multi-file uploads.
     """
     if not GITHUB_TOKEN:
         logger.debug("GITHUB_TOKEN not set — skipping sync")
@@ -88,66 +94,62 @@ def sync_to_github(reason: str = "Knowledge base updated") -> bool:
 
 def _do_sync(reason: str) -> bool:
     """Sync logic executed while _sync_lock is held."""
-    logger.info("Syncing knowledge base to GitHub: %s", reason)
-    _setup_repo()
+    logger.info("Syncing knowledge base to GitHub [%s]: %s", DATA_BRANCH, reason)
+    _setup_data_repo()
 
-    code, out = _run(["git", "fetch", "origin", GITHUB_BRANCH])
-    if code != 0:
-        logger.warning("git fetch failed before sync (will try anyway): %s", out)
+    _data_run(["git", "fetch", "origin", DATA_BRANCH])
 
-    if _local_branch_exists():
-        # Branch exists — update HEAD + index to remote tip WITHOUT touching
-        # the working tree. ChromaDB files written since the last sync survive;
-        # git add data/ below stages the diff against the previous sync.
-        _run(["git", "reset", "--mixed", f"origin/{GITHUB_BRANCH}"])
+    remote_exists = _data_run(["git", "rev-parse", "--verify", f"refs/remotes/origin/{DATA_BRANCH}"])[0] == 0
+    local_exists = _data_run(["git", "rev-parse", "--verify", f"refs/heads/{DATA_BRANCH}"])[0] == 0
+
+    if remote_exists and local_exists:
+        # Sync local branch to remote without touching working tree
+        _data_run(["git", "reset", "--mixed", f"origin/{DATA_BRANCH}"])
+    elif remote_exists:
+        # Remote exists but no local branch — create it
+        _data_run(["git", "checkout", "-B", DATA_BRANCH, f"origin/{DATA_BRANCH}"])
     else:
-        # Fresh git init — create local branch from remote. ChromaDB files in
-        # data/ are UNTRACKED at this point (not in origin/BRANCH), so checkout
-        # leaves them completely untouched.
-        _run(["git", "checkout", "-B", GITHUB_BRANCH, f"origin/{GITHUB_BRANCH}"])
+        # First ever sync — create an orphan branch (data-only, no code history)
+        _data_run(["git", "checkout", "--orphan", DATA_BRANCH])
 
-    _run(["git", "add", "data/"])
+    _data_run(["git", "add", "data/"])
 
-    code, _ = _run(["git", "diff", "--cached", "--quiet"])
+    code, _ = _data_run(["git", "diff", "--cached", "--quiet"])
     if code == 0:
         logger.debug("Nothing new to commit — knowledge base already in sync")
         return True
 
     timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
-    code, out = _run(["git", "commit", "-m", f"Auto-sync: {reason} ({timestamp})"])
+    code, out = _data_run(["git", "commit", "-m", f"Data sync: {reason} ({timestamp})"])
     if code != 0:
         logger.warning("git commit failed: %s", out)
         return False
 
-    code, out = _run(["git", "push", "origin", f"HEAD:{GITHUB_BRANCH}"])
+    code, out = _data_run(["git", "push", "origin", f"HEAD:{DATA_BRANCH}"])
     if code == 0:
-        logger.info("Knowledge base synced to GitHub successfully")
+        logger.info("Knowledge base synced to GitHub [%s] successfully", DATA_BRANCH)
         return True
 
-    # Push was rejected — remote moved between our fetch and now. Re-fetch,
-    # replay our staged data on top of the new tip, and try once more.
-    logger.warning("git push failed (remote moved), retrying: %s", out)
-    if _run(["git", "fetch", "origin", GITHUB_BRANCH])[0] != 0:
-        logger.warning("git fetch on retry failed")
-        return False
+    # Push rejected — retry once with fresh fetch
+    logger.warning("git push failed, retrying after re-fetch: %s", out)
+    _data_run(["git", "fetch", "origin", DATA_BRANCH])
+    _data_run(["git", "reset", "--mixed", f"origin/{DATA_BRANCH}"])
+    _data_run(["git", "add", "data/"])
 
-    _run(["git", "reset", "--mixed", f"origin/{GITHUB_BRANCH}"])
-    _run(["git", "add", "data/"])
-
-    code, _ = _run(["git", "diff", "--cached", "--quiet"])
+    code, _ = _data_run(["git", "diff", "--cached", "--quiet"])
     if code == 0:
         logger.info("Remote already contains our data after retry fetch")
         return True
 
-    code, out = _run(["git", "commit", "-m", f"Auto-sync: {reason} (retry) ({timestamp})"])
+    code, out = _data_run(["git", "commit", "-m", f"Data sync: {reason} (retry) ({timestamp})"])
     if code != 0:
         logger.warning("git commit on retry failed: %s", out)
         return False
 
-    code, out = _run(["git", "push", "origin", f"HEAD:{GITHUB_BRANCH}"])
+    code, out = _data_run(["git", "push", "origin", f"HEAD:{DATA_BRANCH}"])
     if code != 0:
-        logger.warning("git push retry also failed: %s", out)
+        logger.warning("git push retry failed: %s", out)
         return False
 
-    logger.info("Knowledge base synced to GitHub successfully (after retry)")
+    logger.info("Knowledge base synced to GitHub [%s] successfully (after retry)", DATA_BRANCH)
     return True
