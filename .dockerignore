@@ -1,0 +1,40 @@
+# Exclude runtime data from the Docker image.
+# The data/ folder is restored from GitHub at container startup via
+# restore_from_github(), so it must NOT be baked into the image.
+# Including it would make images huge and cause deploy failures.
+data/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment secrets
+.env
+.env.local
+.env.*.local
+
+# Logs and temp
+*.log
+logs/
+*.tmp
+*.temp
+*.bak
+
+# OS
+.DS_Store
+Thumbs.db
