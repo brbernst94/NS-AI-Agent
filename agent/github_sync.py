@@ -24,7 +24,7 @@ def _run(cmd: list[str], cwd: str = WORKDIR) -> tuple[int, str]:
 
 
 def _setup_repo() -> bool:
-    """Initialize git repo, configure remote, and sync to remote branch."""
+    """Initialize git repo and configure remote. Does NOT touch working tree files."""
     remote_url = f"https://x-access-token:{GITHUB_TOKEN}@github.com/{GITHUB_REPO}.git"
 
     _run(["git", "config", "user.email", "agent@ns-ai-agent.app"])
@@ -36,14 +36,6 @@ def _setup_repo() -> bool:
         _run(["git", "remote", "add", "origin", remote_url])
     else:
         _run(["git", "remote", "set-url", "origin", remote_url])
-
-    # Fetch remote branch and reset local branch to match it so pushes
-    # go on top of existing history rather than being rejected as non-fast-forward.
-    code, out = _run(["git", "fetch", "origin", GITHUB_BRANCH])
-    if code == 0:
-        _run(["git", "checkout", "-B", GITHUB_BRANCH, f"origin/{GITHUB_BRANCH}"])
-    else:
-        logger.warning("git fetch in _setup_repo failed (will try push anyway): %s", out)
 
     return True
 
@@ -62,6 +54,10 @@ def restore_from_github() -> bool:
         logger.warning("git fetch failed: %s", out)
         return False
 
+    # Move branch pointer to match remote (--soft keeps working tree intact)
+    _run(["git", "reset", "--soft", f"origin/{GITHUB_BRANCH}"])
+
+    # Pull the actual data/ files from remote into working tree
     code, out = _run(["git", "checkout", f"origin/{GITHUB_BRANCH}", "--", "data/"])
     if code != 0:
         logger.warning("git checkout data/ failed: %s", out)
@@ -79,6 +75,15 @@ def sync_to_github(reason: str = "Knowledge base updated") -> bool:
 
     logger.info("Syncing knowledge base to GitHub: %s", reason)
     _setup_repo()
+
+    # Fetch remote and move branch pointer WITHOUT touching the working tree.
+    # --soft ensures ChromaDB files written during ingest are preserved while
+    # the commit goes on top of existing remote history (no non-fast-forward).
+    code, out = _run(["git", "fetch", "origin", GITHUB_BRANCH])
+    if code == 0:
+        _run(["git", "reset", "--soft", f"origin/{GITHUB_BRANCH}"])
+    else:
+        logger.warning("git fetch failed before sync (will try anyway): %s", out)
 
     _run(["git", "add", "data/"])
 
@@ -101,4 +106,3 @@ def sync_to_github(reason: str = "Knowledge base updated") -> bool:
 
     logger.info("Knowledge base synced to GitHub successfully")
     return True
-
