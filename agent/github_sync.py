@@ -24,19 +24,26 @@ def _run(cmd: list[str], cwd: str = WORKDIR) -> tuple[int, str]:
 
 
 def _setup_repo() -> bool:
-    """Initialize git repo and configure remote if needed."""
+    """Initialize git repo, configure remote, and sync to remote branch."""
     remote_url = f"https://x-access-token:{GITHUB_TOKEN}@github.com/{GITHUB_REPO}.git"
 
     _run(["git", "config", "user.email", "agent@ns-ai-agent.app"])
     _run(["git", "config", "user.name", "NS-AI-Agent"])
 
-    # Initialize repo if no .git exists
     if not os.path.exists(os.path.join(WORKDIR, ".git")):
         logger.info("No .git found — initializing repo")
-        _run(["git", "init", "-b", GITHUB_BRANCH])
+        _run(["git", "init"])
         _run(["git", "remote", "add", "origin", remote_url])
     else:
         _run(["git", "remote", "set-url", "origin", remote_url])
+
+    # Fetch remote branch and reset local branch to match it so pushes
+    # go on top of existing history rather than being rejected as non-fast-forward.
+    code, out = _run(["git", "fetch", "origin", GITHUB_BRANCH])
+    if code == 0:
+        _run(["git", "checkout", "-B", GITHUB_BRANCH, f"origin/{GITHUB_BRANCH}"])
+    else:
+        logger.warning("git fetch in _setup_repo failed (will try push anyway): %s", out)
 
     return True
 
