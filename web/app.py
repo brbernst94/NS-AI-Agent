@@ -30,14 +30,27 @@ st.set_page_config(
 # API helpers
 # ---------------------------------------------------------------------------
 
+def _parse_response(resp: requests.Response) -> dict | list | None:
+    """Parse JSON response, showing a clean error if the body isn't JSON."""
+    try:
+        return resp.json()
+    except Exception:
+        status = resp.status_code
+        preview = resp.text[:200] if resp.text else "(empty response)"
+        st.error(f"API returned non-JSON response (HTTP {status}): {preview}")
+        return None
+
+
 def api_get(path: str, params: dict | None = None) -> dict | list | None:
     try:
         resp = requests.get(f"{API_BASE}{path}", params=params, timeout=_REQUEST_TIMEOUT)
         resp.raise_for_status()
-        return resp.json()
+        return _parse_response(resp)
     except requests.exceptions.ConnectionError:
         st.error(f"Cannot connect to API at {API_BASE}. Is the server running?")
         return None
+    except requests.exceptions.HTTPError as exc:
+        return _parse_response(exc.response)
     except Exception as exc:
         st.error(f"API error: {exc}")
         return None
@@ -52,7 +65,7 @@ def api_post(path: str, json_data: dict | None = None, files: dict | None = None
                 f"{API_BASE}{path}", json=json_data, timeout=_REQUEST_TIMEOUT
             )
         resp.raise_for_status()
-        return resp.json()
+        return _parse_response(resp)
     except requests.exceptions.ConnectionError:
         st.error(f"Cannot connect to API at {API_BASE}. Is the server running?")
         return None
@@ -73,7 +86,7 @@ def api_patch(path: str, json_data: dict) -> dict | None:
     try:
         resp = requests.patch(f"{API_BASE}{path}", json=json_data, timeout=_REQUEST_TIMEOUT)
         resp.raise_for_status()
-        return resp.json()
+        return _parse_response(resp)
     except Exception as exc:
         st.error(f"API error: {exc}")
         return None
