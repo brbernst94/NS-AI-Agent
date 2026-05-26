@@ -49,7 +49,10 @@ class KnowledgeIndex:
         self._pool.putconn(conn)
 
     def _init_schema(self) -> None:
-        conn = self._get_conn()
+        # Use a raw pool connection here — register_vector requires the vector
+        # type to already exist, so we must create the extension FIRST before
+        # calling _get_conn() (which calls register_vector).
+        conn = self._pool.getconn()
         try:
             # ------------------------------------------------------------------
             # Step 1: Ensure pgvector extension exists.
@@ -82,6 +85,9 @@ class KnowledgeIndex:
                     "pgvector extension already exists — continuing despite "
                     "CREATE EXTENSION error."
                 )
+
+            # Extension is confirmed present — now safe to register the type.
+            register_vector(conn)
 
             # ------------------------------------------------------------------
             # Step 2: Create the documents table (safe; uses IF NOT EXISTS).
