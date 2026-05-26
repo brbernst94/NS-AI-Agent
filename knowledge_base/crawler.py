@@ -119,9 +119,14 @@ class NetSuiteCrawler:
             conn.commit()
 
     def _is_crawled(self, url: str) -> bool:
+        # Check the knowledge index for an existing entry from this URL so
+        # deduplication survives across restarts (crawler.db is ephemeral /tmp).
         with sqlite3.connect(self.db_path) as conn:
             row = conn.execute("SELECT 1 FROM crawled_urls WHERE url = ?", (url,)).fetchone()
-            return row is not None
+            if row:
+                return True
+        source_name = f"oracle_docs:{url}"
+        return source_name in self.knowledge_index.list_sources()
 
     def _mark_crawled(self, url: str, chunks: int) -> None:
         with sqlite3.connect(self.db_path) as conn:
