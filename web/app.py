@@ -50,7 +50,13 @@ def api_get(path: str, params: dict | None = None) -> dict | list | None:
         st.error(f"Cannot connect to API at {API_BASE}. Is the server running?")
         return None
     except requests.exceptions.HTTPError as exc:
-        return _parse_response(exc.response)
+        detail = ""
+        try:
+            detail = exc.response.json().get("detail", "")
+        except Exception:
+            pass
+        st.error(f"API error {exc.response.status_code}: {detail or exc}")
+        return None
     except Exception as exc:
         st.error(f"API error: {exc}")
         return None
@@ -144,6 +150,8 @@ def render_sidebar() -> None:
             st.session_state.projects_cache = projects
             project_options = {"(No project)": None}
             for p in projects:
+                if not isinstance(p, dict):
+                    continue
                 project_options[f"{p['name']} ({p['id'][:8]}...)"] = p["id"]
 
             current_display = "(No project)"
