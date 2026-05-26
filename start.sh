@@ -1,20 +1,29 @@
 #!/bin/bash
+# SERVICE_ROLE controls what this container runs:
+#   api        → FastAPI backend only   (set on the 'web' Railway service)
+#   streamlit  → Streamlit frontend only (set on the 'streamlit' Railway service)
+#   (unset)    → both, for local development
 
-# Start the FastAPI backend in the background (internal port 8000)
-echo "Starting FastAPI backend..."
-python -m api.main &
-API_PID=$!
+if [ "$SERVICE_ROLE" = "api" ]; then
+    echo "Starting FastAPI backend..."
+    exec uvicorn api.main:app --host 0.0.0.0 --port "${PORT:-8000}"
 
-# Wait for API to be ready
-sleep 2
+elif [ "$SERVICE_ROLE" = "streamlit" ]; then
+    echo "Starting Streamlit web UI..."
+    exec streamlit run web/app.py \
+        --server.port="${PORT:-8501}" \
+        --server.address=0.0.0.0 \
+        --server.headless=true \
+        --logger.level=info
 
-# Start Streamlit on the exposed port
-echo "Starting Streamlit web UI..."
-streamlit run web/app.py \
-    --server.port=8080 \
-    --server.address=0.0.0.0 \
-    --server.headless=true \
-    --logger.level=info
-
-# Keep the script running
-wait $API_PID
+else
+    # Local dev: run both
+    echo "Starting FastAPI backend..."
+    uvicorn api.main:app --host 0.0.0.0 --port 8000 &
+    echo "Starting Streamlit web UI..."
+    exec streamlit run web/app.py \
+        --server.port=8501 \
+        --server.address=0.0.0.0 \
+        --server.headless=true \
+        --logger.level=info
+fi
