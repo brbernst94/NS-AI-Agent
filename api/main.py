@@ -50,13 +50,30 @@ def create_app() -> FastAPI:
         from agent.core import NSMigrationAgent
         from knowledge_base.crawler import NetSuiteCrawler
 
+        # Default to no agent / no error so the health endpoint is always safe.
+        app.state.agent = None
+        app.state.startup_error = None
+
         logger.info("Initializing NS-AI-Agent...")
-        agent = NSMigrationAgent()
-        app.state.agent = agent
-        logger.info(
-            "NS-AI-Agent ready. Knowledge base: %d documents.",
-            agent.knowledge_index.count(),
-        )
+        try:
+            agent = NSMigrationAgent()
+            app.state.agent = agent
+            logger.info(
+                "NS-AI-Agent ready. Knowledge base: %d documents.",
+                agent.knowledge_index.count(),
+            )
+        except Exception as exc:
+            error_msg = f"{type(exc).__name__}: {exc}"
+            app.state.startup_error = error_msg
+            logger.error(
+                "NS-AI-Agent failed to initialize — API will start in degraded mode. "
+                "Error: %s",
+                error_msg,
+                exc_info=True,
+            )
+            # Do NOT re-raise: let the process keep running so Railway sees a
+            # bound port and we can diagnose via /health instead of a 502.
+            return
 
         # Crawl NetSuite docs in background so startup isn't blocked
         def run_crawler() -> None:
@@ -87,10 +104,20 @@ def create_app() -> FastAPI:
     async def health_check() -> dict:
         """Health check endpoint."""
         agent = getattr(app.state, "agent", None)
-        kb_count = agent.knowledge_index.count() if agent else -1
+        startup_error = getattr(app.state, "startup_error", None)
+        if agent is not None:
+            try:
+                kb_count = agent.knowledge_index.count()
+            except Exception as exc:
+                kb_count = -1
+                if startup_error is None:
+                    startup_error = f"knowledge_index.count() failed: {exc}"
+        else:
+            kb_count = -1
         return {
-            "status": "ok",
+            "status": "degraded" if startup_error else "ok",
             "knowledge_base_documents": kb_count,
+            "startup_error": startup_error,
         }
 
     # ---------------------------------------------------------------------------

@@ -44,7 +44,14 @@ class HistoryMessage(BaseModel):
 # ---------------------------------------------------------------------------
 
 def get_agent(request: Request) -> Any:
-    return request.app.state.agent
+    agent = getattr(request.app.state, "agent", None)
+    if agent is None:
+        startup_error = getattr(request.app.state, "startup_error", "unknown error")
+        raise HTTPException(
+            status_code=503,
+            detail=f"Agent not initialized: {startup_error}",
+        )
+    return agent
 
 
 # ---------------------------------------------------------------------------

@@ -51,8 +51,42 @@ class KnowledgeIndex:
     def _init_schema(self) -> None:
         conn = self._get_conn()
         try:
+            # ------------------------------------------------------------------
+            # Step 1: Ensure pgvector extension exists.
+            # psycopg2 aborts the current transaction on any error, so we need
+            # to ROLLBACK before issuing further commands if this fails.
+            # ------------------------------------------------------------------
+            try:
+                with conn.cursor() as cur:
+                    cur.execute("CREATE EXTENSION IF NOT EXISTS vector")
+                conn.commit()
+            except Exception as ext_err:
+                conn.rollback()
+                logger.warning("Could not CREATE EXTENSION vector: %s", ext_err)
+                # Check whether the extension is already installed (e.g. it was
+                # pre-installed by the platform but our role lacks CREATE
+                # EXTENSION permission).
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT extname FROM pg_extension WHERE extname = 'vector'"
+                    )
+                    row = cur.fetchone()
+                conn.commit()
+                if row is None:
+                    raise RuntimeError(
+                        "pgvector extension is not available on this PostgreSQL "
+                        "instance and could not be created. "
+                        f"Original error: {ext_err}"
+                    ) from ext_err
+                logger.info(
+                    "pgvector extension already exists — continuing despite "
+                    "CREATE EXTENSION error."
+                )
+
+            # ------------------------------------------------------------------
+            # Step 2: Create the documents table (safe; uses IF NOT EXISTS).
+            # ------------------------------------------------------------------
             with conn.cursor() as cur:
-                cur.execute("CREATE EXTENSION IF NOT EXISTS vector")
                 cur.execute("""
                     CREATE TABLE IF NOT EXISTS knowledge_documents (
                         id          UUID        PRIMARY KEY,
@@ -63,12 +97,47 @@ class KnowledgeIndex:
                         created_at  TIMESTAMPTZ DEFAULT NOW()
                     )
                 """)
-                cur.execute("""
-                    CREATE INDEX IF NOT EXISTS knowledge_embedding_hnsw_idx
-                    ON knowledge_documents
-                    USING hnsw (embedding vector_cosine_ops)
-                """)
             conn.commit()
+
+            # ------------------------------------------------------------------
+            # Step 3: Create HNSW index (requires pgvector >= 0.5.0).
+            # Fall back to IVFFlat, then to no index (sequential scan works).
+            # Each attempt is its own transaction so a failure doesn't poison
+            # subsequent commands.
+            # ------------------------------------------------------------------
+            try:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        CREATE INDEX IF NOT EXISTS knowledge_embedding_hnsw_idx
+                        ON knowledge_documents
+                        USING hnsw (embedding vector_cosine_ops)
+                    """)
+                conn.commit()
+                logger.info("HNSW index created (or already exists).")
+            except Exception as hnsw_err:
+                conn.rollback()
+                logger.warning(
+                    "HNSW index creation failed (pgvector < 0.5.0?): %s — "
+                    "trying IVFFlat fallback.",
+                    hnsw_err,
+                )
+                try:
+                    with conn.cursor() as cur:
+                        cur.execute("""
+                            CREATE INDEX IF NOT EXISTS knowledge_embedding_idx
+                            ON knowledge_documents
+                            USING ivfflat (embedding vector_cosine_ops)
+                            WITH (lists = 100)
+                        """)
+                    conn.commit()
+                    logger.info("IVFFlat index created as fallback.")
+                except Exception as ivf_err:
+                    conn.rollback()
+                    logger.warning(
+                        "IVFFlat index creation also failed: %s — "
+                        "continuing without a vector index (sequential scan).",
+                        ivf_err,
+                    )
         finally:
             self._put_conn(conn)
 
