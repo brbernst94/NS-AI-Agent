@@ -39,10 +39,8 @@ class NSMigrationAgent:
         self.project_id = project_id
         self.model = model or _DEFAULT_MODEL
         self.client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
-        self.memory = AgentMemory(
-            db_path=os.path.join(data_dir or os.getenv("DATA_DIR", "./data"), "agent_memory.db")
-        )
-        self.knowledge_index = KnowledgeIndex(data_dir=data_dir or os.getenv("DATA_DIR", "./data"))
+        self.memory = AgentMemory()
+        self.knowledge_index = KnowledgeIndex()
 
         logger.info(
             "NSMigrationAgent initialized. Model: %s, Project: %s",

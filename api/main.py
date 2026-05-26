@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 import os
-from pathlib import Path
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
@@ -46,39 +45,29 @@ def create_app() -> FastAPI:
 
     @app.on_event("startup")
     async def startup() -> None:
-        """Initialize the agent, database, and knowledge base on startup."""
-        import asyncio
+        """Initialize the agent and knowledge base on startup."""
         import threading
         from agent.core import NSMigrationAgent
         from knowledge_base.crawler import NetSuiteCrawler
 
-        data_dir = os.getenv("DATA_DIR", "./data")
-        Path(data_dir).mkdir(parents=True, exist_ok=True)
-
-        # Restore knowledge base from GitHub before initializing
-        try:
-            from agent.github_sync import restore_from_github
-            restore_from_github()
-        except Exception as exc:
-            logger.warning("GitHub restore failed (non-fatal): %s", exc)
-
         logger.info("Initializing NS-AI-Agent...")
-        agent = NSMigrationAgent(data_dir=data_dir)
+        agent = NSMigrationAgent()
         app.state.agent = agent
-        logger.info("NS-AI-Agent ready. Knowledge base: %d documents.", agent.knowledge_index.count())
+        logger.info(
+            "NS-AI-Agent ready. Knowledge base: %d documents.",
+            agent.knowledge_index.count(),
+        )
 
-        # Crawl NetSuite docs in background thread so startup isn't blocked
+        # Crawl NetSuite docs in background so startup isn't blocked
         def run_crawler() -> None:
             try:
                 crawler = NetSuiteCrawler(
                     knowledge_index=agent.knowledge_index,
-                    db_path=os.path.join(data_dir, "crawler.db"),
+                    db_path="/tmp/crawler.db",
                 )
                 new_chunks = crawler.crawl(max_pages=200)
                 if new_chunks > 0:
                     logger.info("NetSuite docs crawl added %d new chunks", new_chunks)
-                    from agent.github_sync import sync_to_github
-                    sync_to_github("Auto-crawled NetSuite documentation")
             except Exception as exc:
                 logger.warning("Doc crawler failed (non-fatal): %s", exc)
 

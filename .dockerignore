@@ -1,7 +1,4 @@
-# Exclude runtime data from the Docker image.
-# The data/ folder is restored from GitHub at container startup via
-# restore_from_github(), so it must NOT be baked into the image.
-# Including it would make images huge and cause deploy failures.
+# Exclude runtime data — knowledge is stored in PostgreSQL, not local files.
 data/
 
 # Python
