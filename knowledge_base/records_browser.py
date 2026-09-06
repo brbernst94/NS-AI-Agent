@@ -52,6 +52,7 @@ class RecordsBrowserCrawler:
         self.records = 0
         self.queued = 0
         self.last_url: str | None = None
+        self.unavailable_reason: str | None = None
 
     def status(self) -> dict[str, Any]:
         return {
@@ -67,19 +68,38 @@ class RecordsBrowserCrawler:
     # ------------------------------------------------------------------
 
     def _resolve_index(self) -> str | None:
+        """Find a live Records Browser index.
+
+        NetSuite serves a soft 404 here: a missing version redirects to
+        page_not_found.jsp and still answers 200, so status alone proves
+        nothing. Require the final URL to be the one asked for and the body to
+        actually contain record links.
+        """
         candidates = [self.version] if self.version else _VERSION_CANDIDATES
+        tried: list[str] = []
         for v in candidates:
             url = f"{_BASE}Browser{v}/script/record/"
             try:
-                r = self.session.get(url, timeout=_TIMEOUT)
+                r = self.session.get(url, timeout=_TIMEOUT, allow_redirects=True)
             except Exception as exc:
-                logger.debug("Records Browser %s unreachable: %s", v, exc)
+                tried.append(f"{v}: {exc}")
                 continue
-            if r.status_code == 200 and "html" in r.headers.get("content-type", ""):
-                self.version = v
-                logger.info("Using Records Browser version %s", v)
-                return url
-        logger.warning("No Records Browser index reachable (tried %s)", candidates)
+            final = r.url or ""
+            if r.status_code != 200 or "page_not_found" in final or "/srbrowser/" not in final:
+                tried.append(f"{v}: soft 404 -> {final[:80]}")
+                continue
+            if not self._record_links(url, r.text):
+                tried.append(f"{v}: page had no record links")
+                continue
+            self.version = v
+            logger.info("Using Records Browser version %s", v)
+            return url
+        logger.warning("No Records Browser index reachable. Tried: %s", "; ".join(tried))
+        self.unavailable_reason = (
+            "The public NetSuite Records Browser is no longer reachable at "
+            f"{_BASE} — every version tried redirects to page_not_found. "
+            "The catalog needs a different source. Tried: " + "; ".join(tried)
+        )
         return None
 
     def _record_links(self, index_url: str, html: str) -> list[str]:
@@ -207,7 +227,9 @@ class RecordsBrowserCrawler:
     def crawl(self, max_records: int | None = None) -> int:
         index_url = self._resolve_index()
         if not index_url:
-            return 0
+            # Raise so the run is recorded as failed with the reason, rather
+            # than looking like a silent no-op in the health report.
+            raise RuntimeError(getattr(self, "unavailable_reason", "Records Browser index not reachable"))
         try:
             r = self.session.get(index_url, timeout=_TIMEOUT)
             links = self._record_links(index_url, r.text)

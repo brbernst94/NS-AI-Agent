@@ -21,19 +21,27 @@ from knowledge_base.crawl_state import CrawlState
 
 logger = logging.getLogger(__name__)
 
-HELP_ROOT = "https://docs.oracle.com/en/cloud/saas/netsuite/ns_en/"
+HELP_ROOT = "https://docs.oracle.com/en/cloud/saas/netsuite/ns-online-help/"
 
+# The section landing pages listed on the NetSuite Help Center index. Each is a
+# table of contents whose links fan out into the articles; verified live.
 SEED_URLS = [
-    HELP_ROOT,
-    HELP_ROOT + "index.html",
-    HELP_ROOT + "netsuitecs_gs/NSCSGS.htm",
-    HELP_ROOT + "netsuitecs_gs/NSSOI.htm",
-    HELP_ROOT + "netsuitecs_gs/NSIMPT.htm",
-    HELP_ROOT + "netsuitecs_gs/NSCOA.htm",
-    HELP_ROOT + "netsuitecs_gs/NSOW.htm",
-    HELP_ROOT + "netsuitecs_gs/NSCS.htm",
-    HELP_ROOT + "netsuitecs_gs/NSITEM.htm",
-    HELP_ROOT + "netsuitecs_gs/NSEMP.htm",
+    "https://docs.oracle.com/en/cloud/saas/netsuite/index.html",
+    HELP_ROOT + "set_N125873.html",          # Account Administration
+    HELP_ROOT + "set_N1379402.html",         # Accounting
+    HELP_ROOT + "set_4423275132.html",       # Order Management
+    HELP_ROOT + "set_N1734902.html",         # SCM (Supply Chain Management)
+    HELP_ROOT + "set_N894004.html",          # Employee Management
+    HELP_ROOT + "set_N973142.html",          # Marketing, Sales Force Automation, Partners
+    HELP_ROOT + "set_N576235.html",          # SuiteAnalytics
+    HELP_ROOT + "set_N2807372.html",         # SuiteCloud Platform
+    HELP_ROOT + "set_N2453322.html",         # Commerce
+    HELP_ROOT + "book_N473219.html",         # NetSuite Basics
+    HELP_ROOT + "book_N2420978.html",        # Support Management
+    HELP_ROOT + "book_4198429264.html",      # Country-Specific Features
+    HELP_ROOT + "book_1556538966.html",      # NetSuite for Mobile
+    HELP_ROOT + "preface_3714107248.html",   # Projects
+    HELP_ROOT + "preface_1531238762.html",   # Developer Documentation
 ]
 
 ALLOWED_DOMAINS = {"docs.oracle.com"}
@@ -53,21 +61,26 @@ _MODULE_RULES: list[tuple[str, tuple[str, ...]]] = [
     ("suitetalk", ("suitetalk", "rest web services", "soap web services", "rest api", "web services")),
     ("suiteflow", ("suiteflow", "workflow")),
     ("suiteanalytics", ("suiteanalytics", "saved search", "suiteql", "workbook", "dataset", "analytics")),
-    ("suitecloud", ("suitecloud", "sdf", "suitebundler", "bundle", "customization", "custom record", "custom field")),
+    ("suitecloud", ("suitecloud", "sdf", "suitebundler", "bundle", "customization", "custom record",
+                    "custom field", "developer documentation")),
     ("csv_import", ("csv import", "import assistant", "csv file", "importing")),
     ("accounting", ("accounting", "general ledger", "journal", "chart of accounts", "period", "close", "fixed asset", "amortization", "revenue recognition", "multi-book")),
     ("oneworld", ("oneworld", "subsidiar", "intercompany", "consolidat", "multi-currency", "currency")),
     ("order_management", ("sales order", "order management", "fulfillment", "invoice", "billing", "return authorization", "estimate", "quote")),
-    ("inventory", ("inventory", "item", "assembly", "bin", "warehouse", "wms", "demand planning", "units of measure")),
+    ("inventory", ("inventory", "item", "assembly", "bin", "warehouse", "wms", "demand planning",
+                   "units of measure", "supply chain", "scm", "manufactur")),
     ("purchasing", ("purchase order", "vendor", "procurement", "receiving", "bill")),
     ("banking", ("bank", "payment", "deposit", "reconcil", "electronic payments")),
     ("tax", ("tax", "vat", "gst", "nexus", "1099")),
     ("crm", ("crm", "lead", "prospect", "opportunit", "campaign", "case", "support", "marketing")),
     ("projects", ("project", "job", "resource allocation", "time tracking", "timesheet")),
-    ("payroll_hr", ("payroll", "employee", "hr", "human resources", "expense report", "paid time off")),
-    ("ecommerce", ("suitecommerce", "web store", "webstore", "ecommerce", "site builder")),
-    ("administration", ("setup", "administrator", "role", "permission", "users/roles", "company information", "enable features", "preferences", "security", "sso", "authentication")),
+    # "hr" alone is too short to match on — it appears inside unrelated words.
+    ("payroll_hr", ("payroll", "employee", "human resources", "expense report", "paid time off")),
+    ("ecommerce", ("suitecommerce", "web store", "webstore", "ecommerce", "commerce", "site builder")),
+    ("administration", ("setup", "administrat", "role", "permission", "users/roles", "company information",
+                        "enable features", "preferences", "security", "sso", "authentication")),
     ("reporting", ("report", "financial statement", "dashboard", "kpi")),
+    ("localization", ("country-specific", "globalization", "localization", "international edition")),
 ]
 
 

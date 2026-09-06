@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 _MODULES = (
     "suitescript, suitetalk, suiteflow, suiteanalytics, suitecloud, csv_import, accounting, "
     "oneworld, order_management, inventory, purchasing, banking, tax, crm, projects, "
-    "payroll_hr, ecommerce, administration, reporting"
+    "payroll_hr, ecommerce, administration, reporting, localization"
 )
 
 # ---------------------------------------------------------------------------

@@ -83,8 +83,10 @@ class DocumentIngester:
     # PDF
     # ------------------------------------------------------------------
 
-    def ingest_pdf(self, file_path: str | Path, tags: dict[str, Any] | None = None) -> int:
+    def ingest_pdf(self, file_path: str | Path, tags: dict[str, Any] | None = None,
+                   source_name: str | None = None) -> int:
         file_path = Path(file_path)
+        source = source_name or file_path.name
         from pypdf import PdfReader
 
         try:
@@ -101,24 +103,26 @@ class DocumentIngester:
             for chunk_idx, chunk in enumerate(chunk_text(text)):
                 docs.append({
                     "text": chunk,
-                    "source": file_path.name,
+                    "source": source,
                     "metadata": self._meta(
                         {"page": page_num, "chunk_index": chunk_idx, "file_type": "pdf",
-                         "doc_type": "upload", "title": file_path.stem},
+                         "doc_type": "upload", "title": Path(source).stem},
                         tags,
                     ),
                 })
 
         added = self.index.add_documents(docs)
-        logger.info("Ingested PDF '%s': %d chunks added.", file_path.name, added)
+        logger.info("Ingested PDF '%s': %d chunks added.", source, added)
         return added
 
     # ------------------------------------------------------------------
     # Word (.docx)
     # ------------------------------------------------------------------
 
-    def ingest_word(self, file_path: str | Path, tags: dict[str, Any] | None = None) -> int:
+    def ingest_word(self, file_path: str | Path, tags: dict[str, Any] | None = None,
+                    source_name: str | None = None) -> int:
         file_path = Path(file_path)
+        source = source_name or file_path.name
         from docx import Document
 
         try:
@@ -148,26 +152,28 @@ class DocumentIngester:
         docs = [
             {
                 "text": chunk,
-                "source": file_path.name,
+                "source": source,
                 "metadata": self._meta(
                     {"chunk_index": i, "file_type": "docx", "doc_type": "upload",
-                     "title": file_path.stem},
+                     "title": Path(source).stem},
                     tags,
                 ),
             }
             for i, chunk in enumerate(chunk_text(full_text))
         ]
         added = self.index.add_documents(docs)
-        logger.info("Ingested Word doc '%s': %d chunks added.", file_path.name, added)
+        logger.info("Ingested Word doc '%s': %d chunks added.", source, added)
         return added
 
     # ------------------------------------------------------------------
     # CSV / Excel
     # ------------------------------------------------------------------
 
-    def ingest_csv(self, file_path: str | Path, tags: dict[str, Any] | None = None) -> int:
+    def ingest_csv(self, file_path: str | Path, tags: dict[str, Any] | None = None,
+                   source_name: str | None = None) -> int:
         """Treat a CSV/Excel file as structured documentation, 20 rows per chunk."""
         file_path = Path(file_path)
+        source = source_name or file_path.name
         import pandas as pd
 
         try:
@@ -181,34 +187,34 @@ class DocumentIngester:
 
         df = df.fillna("")
         columns = list(df.columns)
-        base = {"file_type": "csv", "doc_type": "upload", "title": file_path.stem}
+        base = {"file_type": "csv", "doc_type": "upload", "title": Path(source).stem}
 
         docs: list[dict[str, Any]] = [{
             "text": (
-                f"File: {file_path.name}\n"
+                f"File: {source}\n"
                 f"Columns ({len(columns)}): {', '.join(columns)}\n"
                 f"Total rows: {len(df)}"
             ),
-            "source": file_path.name,
+            "source": source,
             "metadata": self._meta({**base, "chunk_type": "header"}, tags),
         }]
 
         batch_size = 20
         for batch_start in range(0, len(df), batch_size):
             batch = df.iloc[batch_start : batch_start + batch_size]
-            lines = [f"Records {batch_start + 1}–{batch_start + len(batch)} from {file_path.name}:"]
+            lines = [f"Records {batch_start + 1}–{batch_start + len(batch)} from {source}:"]
             for _, row in batch.iterrows():
                 parts = [f"{col}={val}" for col, val in row.items() if val]
                 if parts:
                     lines.append("  { " + ", ".join(parts) + " }")
             docs.append({
                 "text": "\n".join(lines),
-                "source": file_path.name,
+                "source": source,
                 "metadata": self._meta({**base, "chunk_type": "rows", "row_start": batch_start}, tags),
             })
 
         added = self.index.add_documents(docs)
-        logger.info("Ingested CSV '%s': %d chunks added.", file_path.name, added)
+        logger.info("Ingested CSV '%s': %d chunks added.", source, added)
         return added
 
     # ------------------------------------------------------------------
@@ -325,11 +331,11 @@ class DocumentIngester:
         if ext == ".zip":
             return self.ingest_zip(file_path, tags)
         if ext == ".pdf":
-            return self.ingest_pdf(file_path, tags)
+            return self.ingest_pdf(file_path, tags, source_name=original_name)
         if ext in (".docx", ".doc"):
-            return self.ingest_word(file_path, tags)
+            return self.ingest_word(file_path, tags, source_name=original_name)
         if ext in (".csv", ".xlsx", ".xls"):
-            return self.ingest_csv(file_path, tags)
+            return self.ingest_csv(file_path, tags, source_name=original_name)
         if ext in (".txt", ".md", ".rst"):
             text = file_path.read_text(encoding="utf-8", errors="replace")
             return self.ingest_text(text, original_name, tags)
