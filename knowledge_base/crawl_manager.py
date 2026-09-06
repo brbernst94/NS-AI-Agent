@@ -42,9 +42,17 @@ class CrawlManager:
         return {"started": True, "targets": targets, **self.status()}
 
     def _run(self, targets: list[str], max_pages: int | None) -> None:
+        from knowledge_base import crawl_health
+
         for t in targets:
             job = self.jobs[t]
             job.update({"state": "running", "started_at": _now(), "finished_at": None, "error": None})
+            run_id = None
+            crawler = None
+            try:
+                run_id = crawl_health.start_run(t)
+            except Exception as exc:
+                logger.warning("Could not record run start for %s: %s", t, exc)
             try:
                 if t == "records_browser":
                     from knowledge_base.records_browser import RecordsBrowserCrawler
@@ -61,12 +69,39 @@ class CrawlManager:
                     n = crawler.crawl()
                     job["result"] = {"chunks_added": n, **crawler.status()}
                 job["state"] = "done"
+                self._finish_run(crawl_health, run_id, "done", crawler)
             except Exception as exc:
                 logger.exception("Crawler %s failed", t)
                 job.update({"state": "failed", "error": str(exc)[:500]})
+                self._finish_run(crawl_health, run_id, "failed", crawler, error=str(exc)[:500])
             finally:
                 job["finished_at"] = _now()
                 self._current = None
+                try:
+                    crawl_health.record_snapshot(f"after_{t}", force=True)
+                except Exception as exc:
+                    logger.warning("Snapshot after %s failed: %s", t, exc)
+
+    @staticmethod
+    def _finish_run(crawl_health: Any, run_id: int | None, state: str, crawler: Any, error: str | None = None) -> None:
+        status = {}
+        if crawler is not None:
+            live = getattr(crawler, "status", None)
+            if callable(live):
+                try:
+                    status = live() or {}
+                except Exception:
+                    status = {}
+        try:
+            crawl_health.finish_run(
+                run_id, state,
+                pages=int(status.get("pages_crawled") or status.get("pages") or 0),
+                chunks=int(status.get("chunks_added") or 0),
+                queue_remaining=status.get("queued"),
+                error=error,
+            )
+        except Exception as exc:
+            logger.warning("Could not record run finish: %s", exc)
 
     def status(self) -> dict[str, Any]:
         from knowledge_base.crawl_state import CrawlState

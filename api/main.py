@@ -69,6 +69,13 @@ def create_app() -> FastAPI:
             agent.knowledge_index.count(), agent.catalog.stats(),
         )
 
+        try:
+            from knowledge_base import crawl_health
+
+            crawl_health.record_snapshot("startup", force=True)
+        except Exception as exc:
+            logger.warning("Could not record startup snapshot: %s", exc)
+
         if os.getenv("CRAWL_ON_STARTUP", "1") != "0":
             result = app.state.crawl_manager.start("all")
             logger.info("Startup crawl: %s", result.get("targets") or result.get("reason"))

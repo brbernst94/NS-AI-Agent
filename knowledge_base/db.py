@@ -171,6 +171,37 @@ _CATALOG_DDL = [
     )
     """,
     "CREATE INDEX IF NOT EXISTS crawl_urls_crawler_idx ON crawl_urls(crawler, status)",
+    # Periodic counts, so we can tell whether knowledge is actually growing.
+    """
+    CREATE TABLE IF NOT EXISTS crawl_snapshots (
+        id              SERIAL      PRIMARY KEY,
+        taken_at        TIMESTAMPTZ DEFAULT NOW(),
+        reason          TEXT,
+        kb_chunks       INTEGER,
+        catalog_records INTEGER,
+        catalog_fields  INTEGER,
+        crawl_done      INTEGER,
+        crawl_failed    INTEGER,
+        crawl_skipped   INTEGER
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS crawl_snapshots_taken_idx ON crawl_snapshots(taken_at)",
+    # One row per crawler run, so a finished-and-exhausted crawl is
+    # distinguishable from a crawl that stalled or never produced anything.
+    """
+    CREATE TABLE IF NOT EXISTS crawl_runs (
+        id              SERIAL      PRIMARY KEY,
+        crawler         TEXT        NOT NULL,
+        state           TEXT        NOT NULL,
+        started_at      TIMESTAMPTZ DEFAULT NOW(),
+        finished_at     TIMESTAMPTZ,
+        pages           INTEGER     DEFAULT 0,
+        chunks          INTEGER     DEFAULT 0,
+        queue_remaining INTEGER,
+        error           TEXT
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS crawl_runs_crawler_idx ON crawl_runs(crawler, started_at DESC)",
 ]
 
 

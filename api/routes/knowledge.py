@@ -251,3 +251,35 @@ async def crawl_start(body: CrawlStartRequest, cm: Any = Depends(get_crawl_manag
 @router.get("/crawl/status")
 async def crawl_status(cm: Any = Depends(get_crawl_manager)) -> dict[str, Any]:
     return cm.status()
+
+
+@router.get("/crawl/health")
+async def crawl_health(
+    hours: float = Query(6.0, gt=0, le=720, description="Compare against a snapshot this many hours old"),
+    request: Request = None,  # type: ignore[assignment]
+) -> dict[str, Any]:
+    """Is the knowledge base still growing? Returns a verdict plus the evidence.
+
+    Deliberately does not require the agent: if startup failed, that is exactly
+    when this needs to answer.
+    """
+    from knowledge_base import crawl_health as health
+
+    result: dict[str, Any] = {}
+    startup_error = getattr(getattr(request, "app", None), "state", None)
+    startup_error = getattr(startup_error, "startup_error", None) if startup_error else None
+    try:
+        result = health.diagnose(hours)
+    except Exception as exc:
+        logger.exception("Crawl health check failed")
+        return {
+            "verdict": "check_failed",
+            "headline": f"Health check could not run: {exc}",
+            "summary": f"VERDICT: check_failed — {exc}",
+            "startup_error": startup_error,
+        }
+    if startup_error:
+        result["verdict"] = "needs_attention"
+        result["startup_error"] = startup_error
+        result["summary"] = f"VERDICT: needs_attention — API in degraded mode: {startup_error}\n" + result["summary"]
+    return result

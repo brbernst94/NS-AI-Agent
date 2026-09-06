@@ -50,7 +50,17 @@ class RecordsBrowserCrawler:
         self.session.headers.update(_HEADERS)
         self.pages = 0
         self.records = 0
+        self.queued = 0
         self.last_url: str | None = None
+
+    def status(self) -> dict[str, Any]:
+        return {
+            "pages_crawled": self.pages,
+            "records": self.records,
+            "queued": self.queued,
+            "last_url": self.last_url,
+            "version": self.version,
+        }
 
     # ------------------------------------------------------------------
     # Discovery
@@ -208,9 +218,10 @@ class RecordsBrowserCrawler:
         if max_records:
             links = links[:max_records]
 
-        for url in links:
-            if self.state.is_done(url):
-                continue
+        pending = [u for u in links if not self.state.is_done(u)]
+        self.queued = len(pending)
+        for url in pending:
+            self.queued -= 1
             self.last_url = url
             try:
                 resp = self.session.get(url, timeout=_TIMEOUT)
