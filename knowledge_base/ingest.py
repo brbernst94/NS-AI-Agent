@@ -62,6 +62,8 @@ def chunk_text(text: str, chunk_size: int = _CHUNK_SIZE, overlap: int = _CHUNK_O
 
 _chunk_text = chunk_text  # backwards-compatible alias
 
+SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".doc", ".csv", ".xlsx", ".xls", ".txt", ".md", ".rst", ".zip"}
+
 
 class DocumentIngester:
     """Ingest documents into the KnowledgeIndex from various formats."""
@@ -292,9 +294,36 @@ class DocumentIngester:
                 tmp_path.unlink(missing_ok=True)
         return self._dispatch(file_path, original_name=file_path.name, tags=tags)
 
+    def ingest_zip(self, file_path: str | Path, tags: dict[str, Any] | None = None) -> int:
+        """Ingest every supported file inside a zip archive."""
+        import tempfile
+        import zipfile
+
+        total = 0
+        with zipfile.ZipFile(str(file_path)) as zf:
+            for info in zf.infolist():
+                name = Path(info.filename).name
+                if info.is_dir() or name.startswith(".") or name.startswith("__"):
+                    continue
+                if Path(name).suffix.lower() not in SUPPORTED_EXTENSIONS:
+                    continue
+                with tempfile.NamedTemporaryFile(suffix=Path(name).suffix, delete=False) as tmp:
+                    tmp.write(zf.read(info))
+                    tmp_path = Path(tmp.name)
+                try:
+                    total += self._dispatch(tmp_path, original_name=name, tags=tags)
+                except Exception as exc:
+                    logger.warning("Failed to ingest %s from zip: %s", name, exc)
+                finally:
+                    tmp_path.unlink(missing_ok=True)
+        logger.info("Ingested zip '%s': %d chunks total.", Path(file_path).name, total)
+        return total
+
     def _dispatch(self, file_path: Path, original_name: str, tags: dict[str, Any] | None) -> int:
         ext = file_path.suffix.lower()
         tags = {"title": Path(original_name).stem, **(tags or {})}
+        if ext == ".zip":
+            return self.ingest_zip(file_path, tags)
         if ext == ".pdf":
             return self.ingest_pdf(file_path, tags)
         if ext in (".docx", ".doc"):

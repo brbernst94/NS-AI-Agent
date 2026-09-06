@@ -114,7 +114,7 @@ async def ingest_file(
 ) -> IngestResponse:
     if file.filename is None:
         raise HTTPException(status_code=400, detail="File must have a filename.")
-    allowed = {".pdf", ".docx", ".doc", ".csv", ".xlsx", ".xls", ".txt", ".md"}
+    allowed = {".pdf", ".docx", ".doc", ".csv", ".xlsx", ".xls", ".txt", ".md", ".zip"}
     ext = Path(file.filename).suffix.lower()
     if ext not in allowed:
         raise HTTPException(status_code=400, detail=f"Unsupported file type '{ext}'. Allowed: {', '.join(sorted(allowed))}")

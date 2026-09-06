@@ -272,8 +272,8 @@ def render_knowledge_tab() -> None:
         if ingest_method == "Upload File":
             uploaded_files = st.file_uploader(
                 "Upload documents",
-                type=["pdf", "docx", "doc", "csv", "xlsx", "xls", "txt", "md"],
-                help="Supported: PDF, Word (.docx), CSV, Excel (.xlsx), plain text",
+                type=["pdf", "docx", "doc", "csv", "xlsx", "xls", "txt", "md", "zip"],
+                help="Supported: PDF, Word (.docx), CSV, Excel (.xlsx), plain text, or a zip of any of these",
                 accept_multiple_files=True,
             )
             if uploaded_files and st.button("Ingest Files", type="primary"):
