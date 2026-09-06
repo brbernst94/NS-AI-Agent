@@ -71,6 +71,8 @@ Live services:
 | `stalled` with "too short" skips | `_extract_page` isn't finding the content element | fix the selector against real HTML |
 | `run_error` | the run raised | read `last_runs[*].error` |
 
+**Database unreachable.** If `/health` shows `could not translate host name "postgres.railway.internal"`, the web service cannot use Railway's private network — nothing is stored and no crawl runs, because agent init fails. Fix: set the web service's `DATABASE_URL` to `${{Postgres.DATABASE_PUBLIC_URL}}` (public proxy, always resolves) instead of `${{Postgres.DATABASE_URL}}`. The app no longer stays degraded forever after such a failure: `_initialize` in `api/main.py` retries in the background with backoff (20s doubling to 5 min) and recovers on its own once the database answers; `/health` reports `status: starting` and `init_attempts` while it does.
+
 Known constraint: **the account owner does not run scripts against NetSuite.** `tools/netsuite_extract.py` exists but is not used. Feed the catalog from the public crawlers, and knowledge from zip uploads (a zip of PDFs/Word/CSV/text is unpacked and every supported file ingested).
 
 Sandbox note: agent containers capture their network policy at start. If Railway is unreachable ("no rule allows host"), the policy changed after this container booted — a newly started session picks it up.

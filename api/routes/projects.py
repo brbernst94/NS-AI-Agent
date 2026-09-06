@@ -72,7 +72,7 @@ class ProjectDetailResponse(BaseModel):
 def get_agent(request: Request) -> Any:
     agent = getattr(request.app.state, "agent", None)
     if agent is None:
-        startup_error = getattr(request.app.state, "startup_error", "unknown error")
+        startup_error = getattr(request.app.state, "startup_error", None) or "still starting up"
         raise HTTPException(
             status_code=503,
             detail=f"Agent not initialized: {startup_error}",

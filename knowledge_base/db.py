@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import os
 import threading
+import time
 from contextlib import contextmanager
 from typing import Iterator
 
@@ -52,6 +53,53 @@ def get_conn(register_vector_type: bool = True) -> psycopg2.extensions.connectio
 
 def put_conn(conn: psycopg2.extensions.connection) -> None:
     get_pool().putconn(conn)
+
+
+def reset_pool() -> None:
+    """Drop the pool so the next call re-resolves DNS and reconnects.
+
+    Railway's private hostname (postgres.railway.internal) can be unresolvable
+    for the first moments of a container's life; a cached broken pool would
+    otherwise keep failing forever.
+    """
+    global _pool
+    with _pool_lock:
+        if _pool is not None:
+            try:
+                _pool.closeall()
+            except Exception:
+                pass
+        _pool = None
+        _vector_registered.clear()
+
+
+def wait_for_database(attempts: int = 6, delay: float = 2.0) -> None:
+    """Block until the database answers SELECT 1, or raise the last error."""
+    last: Exception | None = None
+    for i in range(attempts):
+        try:
+            conn = get_conn(register_vector_type=False)
+            try:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT 1")
+                conn.commit()
+            finally:
+                put_conn(conn)
+            if i:
+                logger.info("Database reachable after %d attempt(s).", i + 1)
+            return
+        except Exception as exc:
+            last = exc
+            reset_pool()
+            if i < attempts - 1:
+                wait = delay * (i + 1)
+                logger.warning(
+                    "Database not reachable (attempt %d/%d): %s — retrying in %.0fs",
+                    i + 1, attempts, str(exc).strip()[:200], wait,
+                )
+                time.sleep(wait)
+    assert last is not None
+    raise last
 
 
 @contextmanager

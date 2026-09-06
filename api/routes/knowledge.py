@@ -61,7 +61,7 @@ class CrawlStartRequest(BaseModel):
 def get_agent(request: Request) -> Any:
     agent = getattr(request.app.state, "agent", None)
     if agent is None:
-        err = getattr(request.app.state, "startup_error", "unknown error")
+        err = getattr(request.app.state, "startup_error", None) or "still starting up"
         raise HTTPException(status_code=503, detail=f"Agent not initialized: {err}")
     return agent
 
