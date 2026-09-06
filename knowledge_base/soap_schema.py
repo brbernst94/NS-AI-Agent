@@ -227,6 +227,15 @@ class SoapSchemaImporter:
     def run(self) -> dict[str, Any]:
         if not self.complex_types:
             self.load()
+        if not self.complex_types:
+            raise RuntimeError(
+                f"No schema types loaded from {WSDL_BASE.format(version=self.version)} — "
+                "NetSuite's schemas may have moved."
+            )
+
+        # Refresh rather than accumulate: only once the schemas are safely in
+        # hand, so a failed download never leaves the catalog empty.
+        self.report["purged"] = self.catalog.purge_source("soap_schema", self.tenant_id)
 
         for name, (ct, path) in sorted(self.complex_types.items()):
             if not self.is_record(name, ct):
@@ -257,7 +266,13 @@ class SoapSchemaImporter:
                 continue
             item_type = self._sublist_item_type(_local(el.get("type")))
             if item_type:
-                sublists.append((el_name, _humanize(el_name), item_type))
+                # SOAP names the wrapper element "itemList"; SuiteScript and the
+                # UI call that sublist "item". Store the SuiteScript-style id,
+                # since that is what anyone writing a script actually needs, and
+                # keep the SOAP name in the label for traceability.
+                sublist_id = re.sub(r"List$", "", el_name) or el_name
+                label = f"{_humanize(sublist_id)} (SOAP: {el_name})"
+                sublists.append((sublist_id, label, item_type))
             else:
                 fields.append(self._field(el))
 

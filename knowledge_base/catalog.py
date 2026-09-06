@@ -231,6 +231,20 @@ class NetSuiteCatalog:
                 )
         return len(rows)
 
+    def purge_source(self, source: str, tenant_id: str = SHARED) -> dict[str, int]:
+        """Delete everything a given source contributed, so a re-import is a
+        refresh rather than an accumulation of stale rows (renamed sublists,
+        record types NetSuite has dropped). Other sources are untouched."""
+        removed: dict[str, int] = {}
+        with db.connection(register_vector_type=False) as conn, conn.cursor() as cur:
+            for table in ("ns_sublist_fields", "ns_sublists", "ns_fields", "ns_record_types"):
+                cur.execute(
+                    f"DELETE FROM {table} WHERE source = %s AND tenant_id = %s", (source, tenant_id)
+                )
+                removed[table] = cur.rowcount
+        logger.info("Purged source '%s': %s", source, removed)
+        return removed
+
     # ------------------------------------------------------------------
     # Read
     # ------------------------------------------------------------------
