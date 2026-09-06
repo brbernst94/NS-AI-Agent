@@ -11,8 +11,8 @@ Everything persistent lives in PostgreSQL (Railway managed Postgres, `DATABASE_U
 - `index.py` — `KnowledgeIndex`: pgvector semantic search over `knowledge_documents`. Chunks carry tag columns `system, module, doc_type, version, title, url, tenant_id`. `search(query, n, where={...}, tenant_id=...)` filters on tags; shared rows (`tenant_id IS NULL`) are always visible and a tenant's own rows get a small rank boost. Embeddings: `all-MiniLM-L6-v2` (384-d), HNSW cosine index (IVFFlat/sequential fallback).
 - `catalog.py` — `NetSuiteCatalog`: the **structured data model** in `ns_record_types`, `ns_fields`, `ns_sublists`, `ns_sublist_fields`. Upserts from any source; `resolve_record_type`, `get_record`, `get_field`, `find_fields(keyword)`, `stats`, and text formatters for the agent. `tenant_id=''` means standard NetSuite.
 - `metadata_import.py` — parses NetSuite REST metadata-catalog JSON Schemas (zip from `tools/netsuite_extract.py`) into the catalog. Handles required/enum/maxLength/readOnly/custom flags and sublist collection→element references.
-- `records_browser.py` — crawls the public NetSuite Records Browser (`system.netsuite.com/.../srbrowser/`) into the catalog. Header-driven table parsing; tries release versions newest-first.
-- `crawler.py` — Oracle Help Center crawler. Tags each page with a `module` inferred from title/URL (`suitescript`, `csv_import`, `accounting`, ...). Resumable: state in `crawl_urls`. Page cap `CRAWL_MAX_PAGES` (default 5000), delay `CRAWL_DELAY_SECONDS`.
+- `soap_schema.py` — builds the catalog from NetSuite's **public SuiteTalk SOAP schemas** (`webservices.netsuite.com/wsdl/<version>/netsuite.wsdl` plus its 38 XSDs, no authentication). Record types are `complexType`s extending `platformCore:Record`; fields are their elements; sublists are `...List` wrappers around a repeated item type; enums come from `simpleType` restrictions. Yields ~183 record types and ~6,100 fields in seconds. Replaced the Records Browser crawler, which NetSuite took offline (every version now redirects to page_not_found).
+- `crawler.py` — Oracle Help Center crawler over `docs.oracle.com/en/cloud/saas/netsuite/ns-online-help/` (**not** `ns_en`, which 404s). Seeded from the 16 live section landing pages. Tags each page with a `module` inferred from title/URL. Resumable: state in `crawl_urls`. Page cap `CRAWL_MAX_PAGES` (default 5000), delay `CRAWL_DELAY_SECONDS`.
 - `crawl_state.py` — `crawl_urls` bookkeeping. `crawl_manager.py` — background runner with live status.
 - `ingest.py` — PDF/Word/CSV/URL/text ingestion; every path accepts `tags`.
 
@@ -38,7 +38,7 @@ Everything persistent lives in PostgreSQL (Railway managed Postgres, `DATABASE_U
 - `POST /chat` · `GET /chat/history/...`
 - `POST /knowledge/ingest/file|url|text` (optional `module`) · `GET /knowledge/search?q=&n=&module=&doc_type=` · `GET /knowledge/stats` · `DELETE /knowledge/source/{name}`
 - `GET /knowledge/catalog/stats` · `GET /knowledge/catalog/records?category=` · `GET /knowledge/catalog/record/{id}` · `GET /knowledge/catalog/fields?q=&record_type=` · `POST /knowledge/catalog/import` (zip)
-- `POST /knowledge/crawl/start {target: docs|records_browser|all, max_pages}` · `GET /knowledge/crawl/status`
+- `POST /knowledge/crawl/start {target: docs|catalog|all, max_pages}` · `GET /knowledge/crawl/status`
 - `GET /knowledge/crawl/health?hours=6` — **is the knowledge base still growing?** Compares current counts against a `crawl_snapshots` row from N hours ago, folds in `crawl_runs` history and the actual error strings, returns a verdict (`healthy`, `running`, `complete`, `needs_attention`, `failing`, `empty`, `no_history`) plus a paste-ready `summary`. Works in degraded mode — it does not require the agent.
 - `/projects/*` CRUD + notes
 
@@ -65,8 +65,8 @@ Live services:
 | `healthy` / `running` | counts grew in the window, or a crawl is in flight | nothing |
 | `complete` | both crawlers exhausted their queues | nothing; add sources to grow further |
 | `empty` | no run has ever started | check `CRAWL_ON_STARTUP`, then `POST /knowledge/crawl/start` |
-| `never_ran` / `no_urls_attempted` (records_browser) | the srbrowser index URL or version list in `records_browser.py` is wrong | re-derive the real index URL, or switch to another public schema source |
-| `failing` with "no field tables found" | the HTML table parser doesn't match the real page | fetch a real page, inspect, rewrite `_fields_from_table` / `_parse_record_page` |
+| `failing` (catalog) | the SOAP import ran but produced no record types | NetSuite's schema layout changed; re-check `soap_schema.py` against a live XSD |
+| `run_error` (catalog) | the schemas moved or are unreachable | check `webservices.netsuite.com/wsdl/<version>/netsuite.wsdl`; bump `NS_SOAP_VERSION` |
 | `failing` with HTTP 403/429 (docs) | Oracle is blocking the crawler | adjust User-Agent, raise `CRAWL_DELAY_SECONDS`, or move to a sitemap-driven crawl |
 | `stalled` with "too short" skips | `_extract_page` isn't finding the content element | fix the selector against real HTML |
 | `run_error` | the run raised | read `last_runs[*].error` |
@@ -79,8 +79,8 @@ Sandbox note: agent containers capture their network policy at start. If Railway
 
 ## Feeding the NetSuite knowledge
 
-1. **Records Browser + Help Center** crawl automatically on startup (or via the Knowledge Base tab / `POST /knowledge/crawl/start`). Progress in the UI or `GET /knowledge/crawl/status`.
-2. **REST metadata catalog** (most authoritative): `pip install requests requests-oauthlib`, set `NS_ACCOUNT`, `NS_CONSUMER_KEY`, `NS_CONSUMER_SECRET`, `NS_TOKEN_ID`, `NS_TOKEN_SECRET`, run `python tools/netsuite_extract.py`, upload the zip in the UI. Custom fields in the export are flagged `is_custom`.
+1. **SOAP schema catalog + Help Center** run automatically on startup (or via the Knowledge Base tab / `POST /knowledge/crawl/start`). Progress in the UI or `GET /knowledge/crawl/status`. The catalog import takes seconds; the docs crawl runs for hours and resumes where it left off.
+2. **REST metadata catalog** (optional, adds an account's custom fields): the owner does not run scripts against NetSuite, so `tools/netsuite_extract.py` is unused. It remains the path for a future customer connector — its output uploads via `POST /knowledge/catalog/import` and flags custom fields `is_custom`.
 3. **Manual uploads** — Help Center PDFs, SuiteAnswers articles, notes. Tag with a `module` where possible.
 4. **Measure**: `python eval/run_eval.py --api <web url>`; add questions to `eval/netsuite_qa.jsonl` as gaps are found.
 

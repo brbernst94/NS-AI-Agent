@@ -16,7 +16,7 @@ from knowledge_base import db
 
 logger = logging.getLogger(__name__)
 
-CRAWLERS = ("docs", "records_browser")
+CRAWLERS = ("docs", "catalog")
 _MIN_SNAPSHOT_GAP = timedelta(minutes=15)
 
 
@@ -198,7 +198,17 @@ def crawler_detail() -> dict[str, dict[str, Any]]:
 # Diagnosis
 # ---------------------------------------------------------------------------
 
-def _verdict_for(crawler: str, detail: dict[str, Any], run: dict[str, Any] | None) -> dict[str, Any]:
+def _verdict_for(
+    crawler: str,
+    detail: dict[str, Any],
+    run: dict[str, Any] | None,
+    counts: dict[str, int] | None = None,
+) -> dict[str, Any]:
+    # The catalog importer reads NetSuite's SOAP schemas rather than crawling
+    # URLs, so it is judged on records imported, not on crawl_urls rows.
+    if crawler == "catalog":
+        return _catalog_verdict(run, counts or {})
+
     by_status = detail.get("by_status", {})
     done = by_status.get("done", 0)
     failed = by_status.get("failed", 0)
@@ -252,6 +262,35 @@ def _verdict_for(crawler: str, detail: dict[str, Any], run: dict[str, Any] | Non
     return {"verdict": "progressing", "reason": f"{done} URLs succeeded, {failed} failed, {skipped} skipped."}
 
 
+def _catalog_verdict(run: dict[str, Any] | None, counts: dict[str, int]) -> dict[str, Any]:
+    records = counts.get("catalog_records", 0)
+    fields = counts.get("catalog_fields", 0)
+    if run and run.get("state") == "running":
+        return {"verdict": "running", "reason": "Schema import in progress."}
+    if run is None:
+        return {
+            "verdict": "never_ran",
+            "reason": "The catalog importer has never run.",
+            "action": "POST /knowledge/crawl/start with target 'catalog'.",
+        }
+    if run.get("state") == "failed":
+        return {
+            "verdict": "run_error",
+            "reason": f"Last import raised: {str(run.get('error'))[:250]}",
+            "action": "NetSuite's SOAP schemas may have moved; check knowledge_base/soap_schema.py.",
+        }
+    if records == 0:
+        return {
+            "verdict": "failing",
+            "reason": "The import finished but produced no record types.",
+            "action": "The schema layout has probably changed. Re-check the parser against a live XSD.",
+        }
+    return {
+        "verdict": "complete",
+        "reason": f"{records} record types and {fields} fields imported.",
+    }
+
+
 def diagnose(window_hours: float = 6.0) -> dict[str, Any]:
     """Whole-system verdict on whether the knowledge base is still growing."""
     counts = current_counts()
@@ -265,7 +304,7 @@ def diagnose(window_hours: float = 6.0) -> dict[str, Any]:
         growth = {k: counts[k] - baseline.get(k, 0) for k in counts}
         total_growth = growth["kb_chunks"] + growth["catalog_records"] + growth["catalog_fields"]
 
-    per_crawler = {c: _verdict_for(c, detail.get(c, {}), runs.get(c)) for c in CRAWLERS}
+    per_crawler = {c: _verdict_for(c, detail.get(c, {}), runs.get(c), counts) for c in CRAWLERS}
 
     broken = [c for c, v in per_crawler.items()
               if v["verdict"] in ("failing", "never_ran", "no_urls_attempted", "run_error", "stalled")]

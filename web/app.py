@@ -383,7 +383,7 @@ def render_knowledge_tab() -> None:
     st.subheader("Documentation Crawlers")
     cr_col1, cr_col2 = st.columns([1, 2])
     with cr_col1:
-        target = st.selectbox("Target", ["all", "docs", "records_browser"], help="docs = Oracle Help Center; records_browser = NetSuite Records Browser")
+        target = st.selectbox("Target", ["all", "docs", "catalog"], help="docs = Oracle Help Center; catalog = NetSuite SOAP schema data model")
         max_pages = st.number_input("Max pages (docs)", min_value=0, value=0, help="0 = use server default")
         if st.button("Start crawl", type="primary"):
             result = api_post("/knowledge/crawl/start", json_data={"target": target, "max_pages": max_pages or None})

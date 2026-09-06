@@ -50,7 +50,7 @@ class KnowledgeStats(BaseModel):
 
 
 class CrawlStartRequest(BaseModel):
-    target: str = Field("all", description="docs | records_browser | all")
+    target: str = Field("all", description="docs | catalog | all")
     max_pages: int | None = Field(None, ge=1)
 
 

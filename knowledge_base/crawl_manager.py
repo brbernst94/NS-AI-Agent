@@ -9,7 +9,7 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-TARGETS = ("docs", "records_browser", "all")
+TARGETS = ("docs", "catalog", "all")
 
 
 class CrawlManager:
@@ -21,7 +21,7 @@ class CrawlManager:
         self._current: Any = None
         self.jobs: dict[str, dict[str, Any]] = {
             "docs": {"state": "idle"},
-            "records_browser": {"state": "idle"},
+            "catalog": {"state": "idle"},
         }
 
     @property
@@ -34,7 +34,7 @@ class CrawlManager:
         with self._lock:
             if self.running:
                 return {"started": False, "reason": "a crawl is already running", **self.status()}
-            targets = ["records_browser", "docs"] if target == "all" else [target]
+            targets = ["catalog", "docs"] if target == "all" else [target]
             self._thread = threading.Thread(
                 target=self._run, args=(targets, max_pages), daemon=True, name="knowledge-crawler"
             )
@@ -54,13 +54,13 @@ class CrawlManager:
             except Exception as exc:
                 logger.warning("Could not record run start for %s: %s", t, exc)
             try:
-                if t == "records_browser":
-                    from knowledge_base.records_browser import RecordsBrowserCrawler
+                if t == "catalog":
+                    from knowledge_base.soap_schema import SoapSchemaImporter
 
-                    crawler = RecordsBrowserCrawler(self.catalog)
+                    crawler = SoapSchemaImporter(self.catalog)
                     self._current = crawler
                     n = crawler.crawl()
-                    job["result"] = {"records": n, "version": crawler.version}
+                    job["result"] = {"records": n, **crawler.report}
                 else:
                     from knowledge_base.crawler import NetSuiteCrawler
 
