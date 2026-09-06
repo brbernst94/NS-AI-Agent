@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 from agent.memory import AgentMemory
 from agent.prompts import get_system_prompt
 from agent.tools import TOOL_DEFINITIONS, run_tool
+from knowledge_base.catalog import NetSuiteCatalog
 from knowledge_base.index import KnowledgeIndex
 
 load_dotenv()
@@ -41,6 +42,7 @@ class NSMigrationAgent:
         self.client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
         self.memory = AgentMemory()
         self.knowledge_index = KnowledgeIndex()
+        self.catalog = NetSuiteCatalog()
 
         logger.info(
             "NSMigrationAgent initialized. Model: %s, Project: %s",
@@ -150,6 +152,7 @@ class NSMigrationAgent:
                     tool_input=tool_input,
                     memory=self.memory,
                     knowledge_index=self.knowledge_index,
+                    catalog=self.catalog,
                 )
 
                 tool_results.append(
@@ -248,6 +251,7 @@ class NSMigrationAgent:
                         "source": "chat_learning",
                         "metadata": {
                             "type": "learned_from_chat",
+                            "doc_type": "chat_learning",
                             "user_question": user_message[:200],
                         },
                     }
@@ -356,6 +360,7 @@ class NSMigrationAgent:
                     tool_input=tool_block.input,
                     memory=self.memory,
                     knowledge_index=self.knowledge_index,
+                    catalog=self.catalog,
                 )
 
                 yield {"type": "tool_end", "tool_name": tool_name, "result": result[:500]}

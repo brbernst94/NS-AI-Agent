@@ -4,12 +4,10 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import uuid
 from typing import Any
 
-import psycopg2
-import psycopg2.pool
+from knowledge_base import db
 
 logger = logging.getLogger(__name__)
 
@@ -18,20 +16,14 @@ class AgentMemory:
     """Manages conversation history and project metadata in PostgreSQL."""
 
     def __init__(self, db_path: str | None = None) -> None:
-        # db_path kept for API compatibility but unused; DATABASE_URL is used.
-        db_url = os.getenv("DATABASE_URL", "")
-        if not db_url:
-            raise RuntimeError("DATABASE_URL environment variable is not set")
-        db_url = db_url.replace("postgres://", "postgresql://", 1)
-
-        self._pool = psycopg2.pool.ThreadedConnectionPool(minconn=1, maxconn=10, dsn=db_url)
+        # db_path kept for API compatibility; DATABASE_URL via the shared pool is used.
         self.init_db()
 
     def _get_conn(self):
-        return self._pool.getconn()
+        return db.get_conn(register_vector_type=False)
 
     def _put_conn(self, conn):
-        self._pool.putconn(conn)
+        db.put_conn(conn)
 
     def _row_to_dict(self, cur, row) -> dict[str, Any]:
         cols = [desc[0] for desc in cur.description]
