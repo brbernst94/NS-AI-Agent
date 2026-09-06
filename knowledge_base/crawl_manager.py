@@ -1,0 +1,92 @@
+"""Runs knowledge crawlers in a background thread and reports progress."""
+
+from __future__ import annotations
+
+import logging
+import threading
+from datetime import datetime, timezone
+from typing import Any
+
+logger = logging.getLogger(__name__)
+
+TARGETS = ("docs", "records_browser", "all")
+
+
+class CrawlManager:
+    def __init__(self, knowledge_index: Any, catalog: Any) -> None:
+        self.knowledge_index = knowledge_index
+        self.catalog = catalog
+        self._lock = threading.Lock()
+        self._thread: threading.Thread | None = None
+        self._current: Any = None
+        self.jobs: dict[str, dict[str, Any]] = {
+            "docs": {"state": "idle"},
+            "records_browser": {"state": "idle"},
+        }
+
+    @property
+    def running(self) -> bool:
+        return self._thread is not None and self._thread.is_alive()
+
+    def start(self, target: str = "all", max_pages: int | None = None) -> dict[str, Any]:
+        if target not in TARGETS:
+            raise ValueError(f"target must be one of {TARGETS}")
+        with self._lock:
+            if self.running:
+                return {"started": False, "reason": "a crawl is already running", **self.status()}
+            targets = ["records_browser", "docs"] if target == "all" else [target]
+            self._thread = threading.Thread(
+                target=self._run, args=(targets, max_pages), daemon=True, name="knowledge-crawler"
+            )
+            self._thread.start()
+        return {"started": True, "targets": targets, **self.status()}
+
+    def _run(self, targets: list[str], max_pages: int | None) -> None:
+        for t in targets:
+            job = self.jobs[t]
+            job.update({"state": "running", "started_at": _now(), "finished_at": None, "error": None})
+            try:
+                if t == "records_browser":
+                    from knowledge_base.records_browser import RecordsBrowserCrawler
+
+                    crawler = RecordsBrowserCrawler(self.catalog)
+                    self._current = crawler
+                    n = crawler.crawl()
+                    job["result"] = {"records": n, "version": crawler.version}
+                else:
+                    from knowledge_base.crawler import NetSuiteCrawler
+
+                    crawler = NetSuiteCrawler(self.knowledge_index, max_pages=max_pages)
+                    self._current = crawler
+                    n = crawler.crawl()
+                    job["result"] = {"chunks_added": n, **crawler.status()}
+                job["state"] = "done"
+            except Exception as exc:
+                logger.exception("Crawler %s failed", t)
+                job.update({"state": "failed", "error": str(exc)[:500]})
+            finally:
+                job["finished_at"] = _now()
+                self._current = None
+
+    def status(self) -> dict[str, Any]:
+        from knowledge_base.crawl_state import CrawlState
+
+        out: dict[str, Any] = {"running": self.running, "jobs": {}}
+        for name, job in self.jobs.items():
+            entry = dict(job)
+            entry["totals"] = CrawlState(name).counts()
+            if job.get("state") == "running" and self._current is not None:
+                live = getattr(self._current, "status", None)
+                if callable(live):
+                    entry["progress"] = live()
+                else:
+                    entry["progress"] = {
+                        "pages": getattr(self._current, "pages", None),
+                        "last_url": getattr(self._current, "last_url", None),
+                    }
+            out["jobs"][name] = entry
+        return out
+
+
+def _now() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
