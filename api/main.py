@@ -19,18 +19,14 @@ logger = logging.getLogger(__name__)
 
 
 def create_app() -> FastAPI:
-    """Create and configure the FastAPI application."""
     app = FastAPI(
         title="NS-AI-Agent API",
-        description="NetSuite Data Migration AI Agent REST API",
-        version="1.0.0",
+        description="NetSuite systems-expert agent REST API",
+        version="2.0.0",
         docs_url="/docs",
         redoc_url="/redoc",
     )
 
-    # ---------------------------------------------------------------------------
-    # CORS
-    # ---------------------------------------------------------------------------
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],  # Tighten in production
@@ -45,78 +41,62 @@ def create_app() -> FastAPI:
 
     @app.on_event("startup")
     async def startup() -> None:
-        """Initialize the agent and knowledge base on startup."""
-        import threading
         from agent.core import NSMigrationAgent
-        from knowledge_base.crawler import NetSuiteCrawler
+        from knowledge_base.crawl_manager import CrawlManager
 
-        # Default to no agent / no error so the health endpoint is always safe.
         app.state.agent = None
+        app.state.catalog = None
+        app.state.crawl_manager = None
         app.state.startup_error = None
 
         logger.info("Initializing NS-AI-Agent...")
         try:
             agent = NSMigrationAgent()
-            app.state.agent = agent
-            logger.info(
-                "NS-AI-Agent ready. Knowledge base: %d documents.",
-                agent.knowledge_index.count(),
-            )
         except Exception as exc:
-            error_msg = f"{type(exc).__name__}: {exc}"
-            app.state.startup_error = error_msg
+            app.state.startup_error = f"{type(exc).__name__}: {exc}"
             logger.error(
-                "NS-AI-Agent failed to initialize — API will start in degraded mode. "
-                "Error: %s",
-                error_msg,
-                exc_info=True,
+                "NS-AI-Agent failed to initialize — API running in degraded mode: %s",
+                app.state.startup_error, exc_info=True,
             )
-            # Do NOT re-raise: let the process keep running so Railway sees a
-            # bound port and we can diagnose via /health instead of a 502.
+            # Keep the process alive so Railway sees a bound port and /health explains why.
             return
 
-        # Crawl NetSuite docs in background so startup isn't blocked
-        def run_crawler() -> None:
-            try:
-                crawler = NetSuiteCrawler(
-                    knowledge_index=agent.knowledge_index,
-                    db_path="/tmp/crawler.db",
-                )
-                new_chunks = crawler.crawl(max_pages=200)
-                if new_chunks > 0:
-                    logger.info("NetSuite docs crawl added %d new chunks", new_chunks)
-            except Exception as exc:
-                logger.warning("Doc crawler failed (non-fatal): %s", exc)
+        app.state.agent = agent
+        app.state.catalog = agent.catalog
+        app.state.crawl_manager = CrawlManager(agent.knowledge_index, agent.catalog)
+        logger.info(
+            "NS-AI-Agent ready. Knowledge base: %d chunks. Catalog: %s",
+            agent.knowledge_index.count(), agent.catalog.stats(),
+        )
 
-        thread = threading.Thread(target=run_crawler, daemon=True, name="netsuite-crawler")
-        thread.start()
-        logger.info("NetSuite documentation crawler started in background")
+        if os.getenv("CRAWL_ON_STARTUP", "1") != "0":
+            result = app.state.crawl_manager.start("all")
+            logger.info("Startup crawl: %s", result.get("targets") or result.get("reason"))
 
     @app.on_event("shutdown")
     async def shutdown() -> None:
         logger.info("NS-AI-Agent API shutting down.")
 
     # ---------------------------------------------------------------------------
-    # Health check
+    # Health
     # ---------------------------------------------------------------------------
 
     @app.get("/health", tags=["health"])
     async def health_check() -> dict:
-        """Health check endpoint."""
         agent = getattr(app.state, "agent", None)
         startup_error = getattr(app.state, "startup_error", None)
+        kb_count = -1
+        catalog_stats = None
         if agent is not None:
             try:
                 kb_count = agent.knowledge_index.count()
+                catalog_stats = agent.catalog.stats()
             except Exception as exc:
-                kb_count = -1
-                if startup_error is None:
-                    startup_error = f"knowledge_index.count() failed: {exc}"
-        else:
-            kb_count = -1
+                startup_error = startup_error or f"database check failed: {exc}"
         return {
             "status": "degraded" if startup_error else "ok",
             "knowledge_base_documents": kb_count,
+            "catalog": catalog_stats,
             "startup_error": startup_error,
         }
 
