@@ -51,6 +51,30 @@ Three services from one repo:
 
 `railway.json` runs `sh start.sh` for both; `SERVICE_ROLE` picks what starts. Unset (local dev) runs both.
 
+## Operations
+
+Live services:
+- API (`web`): `https://web-production-5ff2c9.up.railway.app`
+- UI (`streamlit`): `https://streamlit-production-d431.up.railway.app`
+- Work happens on branch `claude/funny-ride-Oq16Q`.
+
+**Is the brain still growing?** `GET /knowledge/crawl/health?hours=6`. Read `verdict` and `summary`; `per_crawler`, `detail.top_errors` and `last_runs` carry the evidence. What each verdict means and the fix:
+
+| verdict | meaning | action |
+|---|---|---|
+| `healthy` / `running` | counts grew in the window, or a crawl is in flight | nothing |
+| `complete` | both crawlers exhausted their queues | nothing; add sources to grow further |
+| `empty` | no run has ever started | check `CRAWL_ON_STARTUP`, then `POST /knowledge/crawl/start` |
+| `never_ran` / `no_urls_attempted` (records_browser) | the srbrowser index URL or version list in `records_browser.py` is wrong | re-derive the real index URL, or switch to another public schema source |
+| `failing` with "no field tables found" | the HTML table parser doesn't match the real page | fetch a real page, inspect, rewrite `_fields_from_table` / `_parse_record_page` |
+| `failing` with HTTP 403/429 (docs) | Oracle is blocking the crawler | adjust User-Agent, raise `CRAWL_DELAY_SECONDS`, or move to a sitemap-driven crawl |
+| `stalled` with "too short" skips | `_extract_page` isn't finding the content element | fix the selector against real HTML |
+| `run_error` | the run raised | read `last_runs[*].error` |
+
+Known constraint: **the account owner does not run scripts against NetSuite.** `tools/netsuite_extract.py` exists but is not used. Feed the catalog from the public crawlers, and knowledge from zip uploads (a zip of PDFs/Word/CSV/text is unpacked and every supported file ingested).
+
+Sandbox note: agent containers capture their network policy at start. If Railway is unreachable ("no rule allows host"), the policy changed after this container booted — a newly started session picks it up.
+
 ## Feeding the NetSuite knowledge
 
 1. **Records Browser + Help Center** crawl automatically on startup (or via the Knowledge Base tab / `POST /knowledge/crawl/start`). Progress in the UI or `GET /knowledge/crawl/status`.
