@@ -332,7 +332,86 @@ def render_knowledge_tab() -> None:
 
     st.divider()
 
+    # ------------------------------------------------------------------
+    # NetSuite catalog (structured data model)
+    # ------------------------------------------------------------------
+    st.subheader("NetSuite Catalog")
+    st.caption("Structured record/field knowledge from NetSuite's own metadata. Fed by the Records Browser crawler and by REST metadata exports.")
+    cat_col1, cat_col2 = st.columns([1, 1])
+    with cat_col1:
+        cstats = api_get("/knowledge/catalog/stats")
+        if cstats:
+            m1, m2, m3 = st.columns(3)
+            m1.metric("Record types", cstats.get("record_types", 0))
+            m2.metric("Fields", cstats.get("fields", 0))
+            m3.metric("Sublists", cstats.get("sublists", 0))
+            if cstats.get("by_category"):
+                st.caption("By category: " + ", ".join(f"{k} {v}" for k, v in cstats["by_category"].items()))
+        lookup = st.text_input("Look up a record type", placeholder="e.g. salesorder, customer, vendorbill")
+        if lookup:
+            rec = api_get(f"/knowledge/catalog/record/{lookup.strip()}")
+            if rec:
+                st.write(f"**{rec['id']}** — {rec.get('label') or ''} · {len(rec.get('fields', []))} fields · {len(rec.get('sublists', []))} sublists")
+                st.dataframe(
+                    [{"Field": f["field_id"], "Label": f.get("label"), "Type": f.get("type"),
+                      "Required": f.get("required"), "References": f.get("select_record")}
+                     for f in rec.get("fields", [])],
+                    use_container_width=True, hide_index=True, height=300,
+                )
+    with cat_col2:
+        st.write("**Import REST metadata export**")
+        st.caption("Run `tools/netsuite_extract.py` locally, then upload the zip it produces.")
+        zip_file = st.file_uploader("Metadata zip", type=["zip"], key="catalog_zip")
+        version = st.text_input("NetSuite release (optional)", placeholder="e.g. 2026.1", key="catalog_version")
+        if zip_file and st.button("Import into catalog", type="primary"):
+            with st.spinner("Importing schemas..."):
+                path = "/knowledge/catalog/import" + (f"?version={version}" if version else "")
+                report = api_post(path, files={"file": (zip_file.name, zip_file.getvalue(), "application/zip")})
+            if report:
+                st.success(
+                    f"Imported {report.get('records', 0)} record types, {report.get('fields', 0)} fields, "
+                    f"{report.get('sublists', 0)} sublists ({report.get('sublist_fields', 0)} sublist fields)."
+                )
+                if report.get("errors"):
+                    st.warning(f"{len(report['errors'])} errors — first: {report['errors'][0]}")
+
+    st.divider()
+
+    # ------------------------------------------------------------------
+    # Crawlers
+    # ------------------------------------------------------------------
+    st.subheader("Documentation Crawlers")
+    cr_col1, cr_col2 = st.columns([1, 2])
+    with cr_col1:
+        target = st.selectbox("Target", ["all", "docs", "records_browser"], help="docs = Oracle Help Center; records_browser = NetSuite Records Browser")
+        max_pages = st.number_input("Max pages (docs)", min_value=0, value=0, help="0 = use server default")
+        if st.button("Start crawl", type="primary"):
+            result = api_post("/knowledge/crawl/start", json_data={"target": target, "max_pages": max_pages or None})
+            if result:
+                st.success("Crawl started." if result.get("started") else f"Not started: {result.get('reason')}")
+        if st.button("Refresh status"):
+            st.rerun()
+    with cr_col2:
+        status = api_get("/knowledge/crawl/status")
+        if status:
+            st.write(f"**Running:** {status.get('running')}")
+            for name, job in (status.get("jobs") or {}).items():
+                totals = job.get("totals", {}).get("by_status", {})
+                line = f"`{name}` — {job.get('state')} · done {totals.get('done', 0)} · failed {totals.get('failed', 0)} · skipped {totals.get('skipped', 0)}"
+                if job.get("progress"):
+                    p = job["progress"]
+                    line += f" · this run: {p.get('pages_crawled', p.get('pages', ''))} pages"
+                    if p.get("last_url"):
+                        line += f"\n    last: {p['last_url']}"
+                if job.get("error"):
+                    line += f"\n    error: {job['error']}"
+                st.markdown(line)
+
+    st.divider()
+
+    # ------------------------------------------------------------------
     # Stats
+    # ------------------------------------------------------------------
     st.subheader("Knowledge Base Statistics")
     if st.button("Refresh Stats"):
         st.rerun()
@@ -340,15 +419,23 @@ def render_knowledge_tab() -> None:
     stats = api_get("/knowledge/stats")
     if stats:
         st.metric("Total Document Chunks", stats.get("total_documents", 0))
+        s1, s2 = st.columns(2)
+        with s1:
+            if stats.get("doc_types"):
+                st.write("**By type:**")
+                st.dataframe([{"Type": k, "Chunks": v} for k, v in sorted(stats["doc_types"].items(), key=lambda x: -x[1])],
+                             use_container_width=True, hide_index=True)
+        with s2:
+            if stats.get("modules"):
+                st.write("**By module:**")
+                st.dataframe([{"Module": k, "Chunks": v} for k, v in sorted(stats["modules"].items(), key=lambda x: -x[1])],
+                             use_container_width=True, hide_index=True)
         if stats.get("sources"):
-            st.write("**Documents by source:**")
-            source_data = [
-                {"Source": k, "Chunks": v}
-                for k, v in sorted(stats["sources"].items(), key=lambda x: -x[1])
-            ]
-            st.dataframe(source_data, use_container_width=True, hide_index=True)
+            with st.expander(f"By source ({len(stats['sources'])})"):
+                st.dataframe([{"Source": k, "Chunks": v} for k, v in sorted(stats["sources"].items(), key=lambda x: -x[1])],
+                             use_container_width=True, hide_index=True)
         else:
-            st.info("No documents ingested yet. Upload files or enter a URL above.")
+            st.info("No documents ingested yet. Upload files or start a crawl above.")
 
 
 # ---------------------------------------------------------------------------

@@ -1,0 +1,35 @@
+{"id": "so-required", "module": "order_management", "question": "What are the minimum required fields to create a sales order?", "expect_any": ["entity", "customer"], "expect_all": ["item"]}
+{"id": "tran-customer-id", "module": "data_model", "question": "What is the internal ID of the customer field on a sales order?", "expect_any": ["entity"]}
+{"id": "tran-date-id", "module": "data_model", "question": "What's the internal ID for the transaction date field?", "expect_any": ["trandate"]}
+{"id": "so-status-id", "module": "data_model", "question": "Which field holds the sales order status and what's its internal ID?", "expect_any": ["orderstatus"]}
+{"id": "so-item-sublist", "module": "data_model", "question": "What is the internal ID of the line item sublist on a sales order?", "expect_any": ["item"]}
+{"id": "je-line-sublist", "module": "data_model", "question": "What's the sublist ID for journal entry lines?", "expect_any": ["line"]}
+{"id": "vendorbill-id", "module": "data_model", "question": "What is the record type internal ID for a vendor bill?", "expect_any": ["vendorbill"]}
+{"id": "invoice-id", "module": "data_model", "question": "Which record type is an AR invoice and what's its internal ID?", "expect_any": ["invoice"]}
+{"id": "customer-terms", "module": "data_model", "question": "Which customer field stores default payment terms?", "expect_any": ["terms"]}
+{"id": "contact-company", "module": "data_model", "question": "Which field links a contact record to its customer?", "expect_any": ["company"]}
+{"id": "enable-features-path", "module": "administration", "question": "Where do I enable features in NetSuite?", "expect_all": ["Setup", "Company", "Enable Features"]}
+{"id": "csv-import-path", "module": "csv_import", "question": "What's the menu path to start a CSV import?", "expect_all": ["Setup", "Import/Export", "Import CSV Records"]}
+{"id": "subsidiary-path", "module": "oneworld", "question": "How do I create a new subsidiary?", "expect_all": ["Setup", "Company", "Subsidiaries"]}
+{"id": "accounting-periods-path", "module": "accounting", "question": "Where do I manage accounting periods?", "expect_all": ["Setup", "Accounting", "Manage Accounting Periods"]}
+{"id": "coa-path", "module": "accounting", "question": "Where is the chart of accounts?", "expect_any": ["Lists > Accounting > Accounts", "Accounting > Accounts"]}
+{"id": "externalid-import", "module": "csv_import", "question": "What is the purpose of the External ID field when importing records via CSV?", "expect_any": ["update", "duplicate", "match"], "expect_all": ["external"]}
+{"id": "import-date-format", "module": "csv_import", "question": "What date format should I use in a CSV import file?", "expect_any": ["MM/DD/YYYY", "preference", "Personal Preferences"]}
+{"id": "ss-record-module", "module": "suitescript", "question": "Which SuiteScript 2.x module do I use to load or create a record?", "expect_any": ["N/record"]}
+{"id": "ss-search-module", "module": "suitescript", "question": "Which SuiteScript 2.x module runs saved searches?", "expect_any": ["N/search"]}
+{"id": "ss-ue-entrypoints", "module": "suitescript", "question": "What are the entry points of a user event script?", "expect_all": ["beforeLoad", "beforeSubmit", "afterSubmit"]}
+{"id": "ss-mapreduce", "module": "suitescript", "question": "Which script type should I use to process a large number of records in the background?", "expect_any": ["Map/Reduce", "map reduce", "mapreduce"]}
+{"id": "ss-restlet", "module": "suitescript", "question": "Which script type lets an external system call NetSuite over HTTP with custom logic?", "expect_any": ["RESTlet", "Suitelet"]}
+{"id": "ss-client-entry", "module": "suitescript", "question": "Name three client script entry points.", "expect_any": ["pageInit", "fieldChanged", "saveRecord", "validateField", "postSourcing"]}
+{"id": "segments", "module": "accounting", "question": "What are the three standard classification segments in NetSuite?", "expect_all": ["department", "class", "location"]}
+{"id": "mandatory-field-no-code", "module": "suitecloud", "question": "How can I make a field mandatory on a record without writing code?", "expect_any": ["custom form", "form", "workflow"]}
+{"id": "negative-inventory", "module": "inventory", "question": "What preference controls whether inventory can go negative?", "expect_any": ["Allow Negative Inventory"]}
+{"id": "item-types", "module": "inventory", "question": "What item types exist in NetSuite?", "expect_all": ["inventory", "service"], "expect_any": ["kit", "assembly", "non-inventory"]}
+{"id": "rest-permission", "module": "suitetalk", "question": "What permission does a role need to use REST web services?", "expect_any": ["REST Web Services"]}
+{"id": "suiteql", "module": "suiteanalytics", "question": "What is SuiteQL?", "expect_any": ["SQL", "query"]}
+{"id": "saved-search-parts", "module": "suiteanalytics", "question": "What are the two main tabs you configure on a saved search?", "expect_all": ["Criteria", "Results"]}
+{"id": "intercompany", "module": "oneworld", "question": "What do I need for transactions between two subsidiaries?", "expect_any": ["intercompany"]}
+{"id": "tba", "module": "administration", "question": "What authentication method should an integration use for REST web services?", "expect_any": ["Token-Based Authentication", "TBA", "OAuth"]}
+{"id": "customer-name-fields", "module": "data_model", "question": "Which fields hold a customer's name for a company versus an individual?", "expect_any": ["companyname"], "expect_all": ["firstname", "lastname"]}
+{"id": "close-period", "module": "accounting", "question": "How do I close an accounting period?", "expect_any": ["Manage Accounting Periods", "period close checklist", "Period Close"]}
+{"id": "ss-governance", "module": "suitescript", "question": "What is SuiteScript governance?", "expect_any": ["usage units", "governance units", "units"]}
