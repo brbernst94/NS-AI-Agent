@@ -170,12 +170,24 @@ class NetSuiteCrawler:
         ingester = DocumentIngester(self.knowledge_index)
         limit = max_pages or self.max_pages
         done = self.state.done_urls()
-        queue: list[str] = [u for u in self.seeds if u not in done]
+        # Resume the frontier persisted by earlier runs, not just the seeds —
+        # otherwise a restart mid-crawl discards everything discovered so far
+        # and the crawl looks "complete" after only the seed pages.
+        pending = [u for u in self.state.pending_urls() if u not in done]
+        queue: list[str] = [u for u in self.seeds if u not in done] + pending
         seen: set[str] = set(queue) | done
         self.pages_crawled = 0
         self.chunks_added = 0
 
-        logger.info("Docs crawl starting: %d seeds, %d already crawled, limit %d", len(queue), len(done), limit)
+        if not queue and done:
+            # The frontier is empty but pages have been crawled before, so an
+            # earlier run lost its queue (it used to live only in memory).
+            # Re-scan the seeds for links — without re-ingesting them — to
+            # rebuild the frontier instead of declaring the crawl finished.
+            queue = self._rediscover(seen)
+            logger.info("Frontier was empty; rediscovered %d URLs from seeds", len(queue))
+
+        logger.info("Docs crawl starting: %d queued, %d already crawled, limit %d", len(queue), len(done), limit)
 
         while queue and self.pages_crawled < limit:
             url = queue.pop(0)
@@ -194,10 +206,11 @@ class NetSuiteCrawler:
                 text, title = _extract_page(html, url)
 
                 # Discover links regardless of whether this page has body text
-                for link in _extract_links(html, url):
-                    if link not in seen:
-                        seen.add(link)
-                        queue.append(link)
+                discovered = [l for l in _extract_links(html, url) if l not in seen]
+                if discovered:
+                    seen.update(discovered)
+                    queue.extend(discovered)
+                    self.state.add_pending(discovered)
 
                 if len(text) < _MIN_TEXT:
                     self.state.mark(url, "skipped", error="too short")
@@ -225,6 +238,25 @@ class NetSuiteCrawler:
 
         logger.info("Docs crawl finished: %d pages, %d chunks, %d still queued", self.pages_crawled, self.chunks_added, len(queue))
         return self.chunks_added
+
+    def _rediscover(self, seen: set[str]) -> list[str]:
+        """Fetch the seeds for their links only, ingesting nothing."""
+        found: list[str] = []
+        for url in self.seeds:
+            try:
+                resp = self.session.get(url, timeout=_REQUEST_TIMEOUT)
+                if resp.status_code != 200:
+                    continue
+                for link in _extract_links(resp.text, url):
+                    if link not in seen:
+                        seen.add(link)
+                        found.append(link)
+            except Exception as exc:
+                logger.debug("Rediscovery failed for %s: %s", url, exc)
+            time.sleep(_CRAWL_DELAY)
+        if found:
+            self.state.add_pending(found)
+        return found
 
     def status(self) -> dict[str, Any]:
         return {

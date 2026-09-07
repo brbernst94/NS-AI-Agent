@@ -26,6 +26,35 @@ class CrawlState:
             )
             return {r[0] for r in cur.fetchall()}
 
+    def add_pending(self, urls: list[str]) -> int:
+        """Remember discovered-but-uncrawled URLs so a restart resumes the
+        frontier instead of starting again from the seeds."""
+        if not urls:
+            return 0
+        from psycopg2.extras import execute_values
+
+        with db.connection(register_vector_type=False) as conn, conn.cursor() as cur:
+            execute_values(
+                cur,
+                """
+                INSERT INTO crawl_urls (url, crawler, status, crawled_at)
+                VALUES %s
+                ON CONFLICT (url) DO NOTHING
+                """,
+                [(u, self.crawler, "pending") for u in urls],
+                template="(%s, %s, %s, NULL)",
+                page_size=500,
+            )
+            return cur.rowcount
+
+    def pending_urls(self, limit: int = 20000) -> list[str]:
+        with db.connection(register_vector_type=False) as conn, conn.cursor() as cur:
+            cur.execute(
+                "SELECT url FROM crawl_urls WHERE crawler = %s AND status = 'pending' LIMIT %s",
+                (self.crawler, limit),
+            )
+            return [r[0] for r in cur.fetchall()]
+
     def mark(self, url: str, status: str, chunks: int = 0, error: str | None = None) -> None:
         with db.connection(register_vector_type=False) as conn, conn.cursor() as cur:
             cur.execute(
