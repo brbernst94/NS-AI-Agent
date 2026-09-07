@@ -52,7 +52,9 @@ _HEADERS = {
     "Accept": "text/html,application/xhtml+xml",
 }
 _REQUEST_TIMEOUT = 20
-_CRAWL_DELAY = float(os.getenv("CRAWL_DELAY_SECONDS", "1.0"))
+# ~2.5 requests/second against Oracle's CDN: still courteous, but a 1s delay
+# would take days to walk a corpus this size.
+_CRAWL_DELAY = float(os.getenv("CRAWL_DELAY_SECONDS", "0.4"))
 _MIN_TEXT = 200
 
 # Keyword -> module. Checked against title + URL, first match wins.

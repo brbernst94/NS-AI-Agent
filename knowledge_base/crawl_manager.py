@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import threading
 from datetime import datetime, timezone
 from typing import Any
@@ -10,6 +11,10 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 TARGETS = ("docs", "catalog", "all")
+
+# Bound on how many times a docs crawl restarts itself after hitting its page
+# cap, so a link loop can never spin forever.
+_MAX_CONTINUATIONS = int(os.getenv("CRAWL_MAX_CONTINUATIONS", "40"))
 
 
 class CrawlManager:
@@ -66,8 +71,20 @@ class CrawlManager:
 
                     crawler = NetSuiteCrawler(self.knowledge_index, max_pages=max_pages)
                     self._current = crawler
-                    n = crawler.crawl()
-                    job["result"] = {"chunks_added": n, **crawler.status()}
+                    # crawl() stops at its page cap. The frontier is persisted,
+                    # so call it again to pick up where it left off — otherwise
+                    # a corpus larger than the cap needs a redeploy per batch.
+                    n = pages = 0
+                    for _ in range(_MAX_CONTINUATIONS):
+                        n += crawler.crawl()
+                        pages += crawler.pages_crawled
+                        if crawler.queued == 0 or crawler.pages_crawled == 0:
+                            break
+                        logger.info(
+                            "Docs crawl hit its page cap with %d URLs still queued — continuing",
+                            crawler.queued,
+                        )
+                    job["result"] = {"chunks_added": n, "pages_total": pages, **crawler.status()}
                 job["state"] = "done"
                 self._finish_run(crawl_health, run_id, "done", crawler)
             except Exception as exc:
