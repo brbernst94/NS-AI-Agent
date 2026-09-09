@@ -391,6 +391,41 @@ class Distiller:
         return self.run(max_topics=max_records)
 
 
+def list_topics(
+    kind: str | None = None,
+    status: str | None = None,
+    limit: int = 50,
+) -> list[dict[str, Any]]:
+    """The proposed topics themselves, so their quality can be judged.
+
+    Counts say a run happened; only reading the questions says whether the
+    proposals are worth writing guides for.
+    """
+    clauses, params = [], []
+    if kind:
+        clauses.append("kind = %s")
+        params.append(kind)
+    if status:
+        clauses.append("status = %s")
+        params.append(status)
+    where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+    with db.connection(register_vector_type=False) as conn, conn.cursor() as cur:
+        cur.execute(
+            f"""
+            SELECT id, kind, module, topic, status, queries, guide_chunks, error
+            FROM kb_topics {where} ORDER BY id LIMIT %s
+            """,
+            (*params, max(1, min(limit, 500))),
+        )
+        return [
+            {
+                "id": r[0], "kind": r[1], "module": r[2], "topic": r[3],
+                "status": r[4], "queries": r[5], "guide_chunks": r[6], "error": r[7],
+            }
+            for r in cur.fetchall()
+        ]
+
+
 def stats() -> dict[str, Any]:
     with db.connection(register_vector_type=False) as conn, conn.cursor() as cur:
         cur.execute("SELECT status, COUNT(*) FROM kb_topics GROUP BY status")

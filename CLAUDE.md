@@ -42,6 +42,7 @@ Everything persistent lives in PostgreSQL (Railway managed Postgres, `DATABASE_U
 - `POST /chat` · `GET /chat/history/...`
 - `POST /knowledge/ingest/file|url|text` (optional `module`) · `GET /knowledge/search?q=&n=&module=&doc_type=` · `GET /knowledge/stats` · `DELETE /knowledge/source/{name}`
 - `GET /knowledge/catalog/stats` · `GET /knowledge/catalog/records?category=` · `GET /knowledge/catalog/record/{id}` · `GET /knowledge/catalog/fields?q=&record_type=` · `POST /knowledge/catalog/import` (zip)
+- `GET /knowledge/distill/stats` — guide counts by status, kind and module · `GET /knowledge/distill/topics?kind=&status=&limit=` — the proposed topics and interaction questions themselves, for judging whether they are worth writing guides for
 - `POST /knowledge/crawl/start {target: docs|catalog|all, max_pages}` · `GET /knowledge/crawl/status`
 - `GET /knowledge/crawl/health?hours=6` — **is the knowledge base still growing?** Compares current counts against a `crawl_snapshots` row from N hours ago, folds in `crawl_runs` history and the actual error strings, returns a verdict (`healthy`, `running`, `complete`, `needs_attention`, `failing`, `empty`, `no_history`) plus a paste-ready `summary`. Works in degraded mode — it does not require the agent.
 - `/projects/*` CRUD + notes

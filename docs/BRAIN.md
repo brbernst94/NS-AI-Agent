@@ -121,8 +121,16 @@ the proposed questions before letting it write guides for all of them:
 POST /knowledge/crawl/start {"target": "distill", "max_pages": 5}
 ```
 
-then read what landed in `kb_topics` where `kind='interaction'`. If the questions
-are weak, fix `_INTERACTION_PROMPT` before spending a full run.
+then read the questions themselves:
+
+```
+GET /knowledge/distill/topics?kind=interaction&limit=25
+```
+
+If the questions are weak, fix `_INTERACTION_PROMPT` before spending a full run.
+Judge them against the founder's five: a good proposal names two specific
+NetSuite features and asks what one does to the other. A bad one is a feature
+description wearing a question mark ("How do I configure revenue recognition?").
 
 Whether it has actually been run against the live corpus is **not established
 here** — this session had no HTTP access to check. Determine it before doing

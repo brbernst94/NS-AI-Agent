@@ -261,6 +261,20 @@ async def distill_stats(agent: Any = Depends(get_agent)) -> dict[str, Any]:
     return distill.stats()
 
 
+@router.get("/distill/topics")
+async def distill_topics(
+    kind: str | None = None,
+    status: str | None = None,
+    limit: int = 50,
+    agent: Any = Depends(get_agent),
+) -> dict[str, Any]:
+    """The proposed topics and interaction questions, for judging their quality."""
+    from knowledge_base import distill
+
+    topics = distill.list_topics(kind=kind, status=status, limit=limit)
+    return {"count": len(topics), "topics": topics}
+
+
 @router.get("/crawl/health")
 async def crawl_health(
     hours: float = Query(6.0, gt=0, le=720, description="Compare against a snapshot this many hours old"),
