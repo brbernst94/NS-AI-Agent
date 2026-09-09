@@ -14,6 +14,9 @@ Everything persistent lives in PostgreSQL (Railway managed Postgres, `DATABASE_U
 - `soap_schema.py` — builds the catalog from NetSuite's **public SuiteTalk SOAP schemas** (`webservices.netsuite.com/wsdl/<version>/netsuite.wsdl` plus its 38 XSDs, no authentication). Record types are `complexType`s extending `platformCore:Record`; fields are their elements; sublists are `...List` wrappers around a repeated item type; enums come from `simpleType` restrictions. Yields ~183 record types and ~6,100 fields in seconds. Replaced the Records Browser crawler, which NetSuite took offline (every version now redirects to page_not_found).
 - `crawler.py` — Oracle Help Center crawler over `docs.oracle.com/en/cloud/saas/netsuite/ns-online-help/` (**not** `ns_en`, which 404s). Seeded from the 16 live section landing pages. Tags each page with a `module` inferred from title/URL. Resumable: state in `crawl_urls`. Page cap `CRAWL_MAX_PAGES` (default 5000), delay `CRAWL_DELAY_SECONDS`.
 - `crawl_state.py` — `crawl_urls` bookkeeping. `crawl_manager.py` — background runner with live status.
+- `distill.py` — turns raw crawled fragments into written knowledge, stored as `doc_type='guide'` (retrieval boosts guides over raw pages, see `_GUIDE_BOOST` in `index.py`). Two kinds of entry in `kb_topics`, both resumable:
+  - `kind='topic'` — feature guides. Topics proposed from real page titles per module, so they mirror how Oracle organised its documentation.
+  - `kind='interaction'` — the consequence and constraint questions consultants actually field ("why can't direct posting items share a sales order with rev rec items"). These are a page title nowhere, so they are proposed separately and retrieved with 2-3 stored queries per question — one per feature involved — merged and deduped, because a single search on the question returns only whichever feature it names first.
 - `ingest.py` — PDF/Word/CSV/URL/text ingestion; every path accepts `tags`.
 
 ### Agent (`agent/`)

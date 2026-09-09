@@ -264,6 +264,13 @@ _CATALOG_DDL = [
     )
     """,
     "CREATE INDEX IF NOT EXISTS kb_topics_status_idx ON kb_topics(status)",
+    # 'topic' = a feature area distilled from page titles.
+    # 'interaction' = a consequence/constraint question spanning two features.
+    "ALTER TABLE kb_topics ADD COLUMN IF NOT EXISTS kind TEXT NOT NULL DEFAULT 'topic'",
+    # Retrieval queries for an interaction: one per side, so the guide is written
+    # from passages about both features rather than only the one named first.
+    "ALTER TABLE kb_topics ADD COLUMN IF NOT EXISTS queries TEXT[]",
+    "CREATE INDEX IF NOT EXISTS kb_topics_kind_idx ON kb_topics(kind)",
 ]
 
 

@@ -81,9 +81,48 @@ both directions.
 
 `knowledge_base/distill.py` is built and wired (`POST /knowledge/crawl/start`
 with `target: distill`, `GET /knowledge/distill/stats`). It works in two
-resumable phases: propose topics from real page titles per module, then write one
-grounded guide per topic, stored as `doc_type='guide'`, `source='distilled_guide'`
-so retrieval prefers it over raw fragments.
+resumable phases: propose topics, then write one grounded guide per topic, stored
+as `doc_type='guide'`, `source='distilled_guide'`. Retrieval genuinely does
+prefer guides — `index.py` subtracts `_GUIDE_BOOST` from the distance for
+`doc_type='guide'` — so a written guide outranks the fragments it came from.
+
+### Two kinds of guide, and why
+
+Topics of `kind='topic'` are proposed from real page titles within a module.
+That yields guides shaped like Oracle's documentation: one feature at a time,
+"Setting up multi-book accounting".
+
+That shape cannot answer most of the founder's questions. "Why can't direct
+posting items and rev-rec items share a sales order" is not a page title in
+Oracle's docs and never will be — it is the knowledge a consultant assembles by
+reading across several features. Feature-shaped topics proposed from feature-
+shaped titles will not produce it.
+
+So `kind='interaction'` proposes questions instead of topics: consequences,
+constraints, what one setting forbids elsewhere, what a feature quietly changes
+once enabled. Each carries 2-3 retrieval queries stored in `kb_topics.queries`,
+one per feature involved, because a single semantic search on the question tends
+to return passages about whichever feature it names first and starve the other
+side. `_retrieve` runs each query, merges, dedupes on the leading 200 characters
+keeping the higher-scoring copy, and excludes previously written guides so
+distillation never feeds on itself.
+
+`GET /knowledge/distill/stats` reports `by_kind` so the two are visible
+separately.
+
+**This pass has been unit-tested against stubs, not run against the live
+corpus.** Multi-query retrieval, dedup, guide exclusion and malformed-proposal
+handling are verified. Whether the interaction proposals are any *good* — whether
+Claude proposes real consultant questions or plausible-sounding filler when shown
+120 page titles — is unknown and is the first thing to look at. Read twenty of
+the proposed questions before letting it write guides for all of them:
+
+```
+POST /knowledge/crawl/start {"target": "distill", "max_pages": 5}
+```
+
+then read what landed in `kb_topics` where `kind='interaction'`. If the questions
+are weak, fix `_INTERACTION_PROMPT` before spending a full run.
 
 Whether it has actually been run against the live corpus is **not established
 here** — this session had no HTTP access to check. Determine it before doing
