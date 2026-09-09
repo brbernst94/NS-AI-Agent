@@ -1,0 +1,514 @@
+{
+ "api": "https://web-production-5ff2c9.up.railway.app",
+ "keyword_pass": 32,
+ "judge_pass": 0,
+ "n": 35,
+ "results": [
+  {
+   "id": "so-required",
+   "module": "order_management",
+   "question": "What are the minimum required fields to create a sales order?",
+   "expect_any": [
+    "entity",
+    "customer"
+   ],
+   "expect_all": [
+    "item"
+   ],
+   "answer": "The catalog shows 0 technically required fields, but in practice you need at minimum the customer (`entity`), at least one line item (`item` sublist with `item` and `quantity`), and if you're on OneWorld, `subsidiary`. The `trandate` defaults to today if you leave it blank, and `rate` defaults to the item's price level, so those fill themselves in most of the time.\n\nWant me to dig into any specific field?",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 23.3
+  },
+  {
+   "id": "tran-customer-id",
+   "module": "data_model",
+   "question": "What is the internal ID of the customer field on a sales order?",
+   "expect_any": [
+    "entity"
+   ],
+   "answer": "It's `entity` \u2014 a select field that references the Customer record.",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 4.2
+  },
+  {
+   "id": "tran-date-id",
+   "module": "data_model",
+   "question": "What's the internal ID for the transaction date field?",
+   "expect_any": [
+    "trandate"
+   ],
+   "answer": "It's `trandate` across all transaction types in NetSuite, no exceptions. It's a datetime field and shows up on everything from invoices to journal entries to assembly builds.",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 20.5
+  },
+  {
+   "id": "so-status-id",
+   "module": "data_model",
+   "question": "Which field holds the sales order status and what's its internal ID?",
+   "expect_any": [
+    "orderstatus"
+   ],
+   "answer": "There are actually two relevant ones: `status` is a read-only text field that holds the display label (e.g. \"Pending Fulfillment\"), and `orderstatus` is the select field that drives it. For filtering in saved searches and scripts you'll almost always want `orderstatus`.",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 17.9
+  },
+  {
+   "id": "so-item-sublist",
+   "module": "data_model",
+   "question": "What is the internal ID of the line item sublist on a sales order?",
+   "expect_any": [
+    "item"
+   ],
+   "answer": "The line item sublist internal ID is `item`.",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 4.2
+  },
+  {
+   "id": "je-line-sublist",
+   "module": "data_model",
+   "question": "What's the sublist ID for journal entry lines?",
+   "expect_any": [
+    "line"
+   ],
+   "answer": "The sublist ID is `line`. That's what you'd reference in SuiteScript or SuiteTalk to get at the debit/credit rows.",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 16.7
+  },
+  {
+   "id": "vendorbill-id",
+   "module": "data_model",
+   "question": "What is the record type internal ID for a vendor bill?",
+   "expect_any": [
+    "vendorbill"
+   ],
+   "answer": "The internal ID is `vendorbill`.",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 3.6
+  },
+  {
+   "id": "invoice-id",
+   "module": "data_model",
+   "question": "Which record type is an AR invoice and what's its internal ID?",
+   "expect_any": [
+    "invoice"
+   ],
+   "answer": "The AR invoice record type is `invoice` -- that's both its internal ID and its record type name in SuiteScript, SuiteTalk, and CSV imports.",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 15.5
+  },
+  {
+   "id": "customer-terms",
+   "module": "data_model",
+   "question": "Which customer field stores default payment terms?",
+   "expect_any": [
+    "terms"
+   ],
+   "answer": "It's `terms` on the customer record, a select field that references the Terms list. Whatever you set there gets defaulted onto transactions for that customer.",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 17.8
+  },
+  {
+   "id": "contact-company",
+   "module": "data_model",
+   "question": "Which field links a contact record to its customer?",
+   "expect_any": [
+    "company"
+   ],
+   "answer": "It's the `company` field on the contact record \u2014 a select that references the parent customer (or vendor). It's not required, but without it the contact floats unattached to any entity.",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 20.1
+  },
+  {
+   "id": "enable-features-path",
+   "module": "administration",
+   "question": "Where do I enable features in NetSuite?",
+   "expect_all": [
+    "Setup",
+    "Company",
+    "Enable Features"
+   ],
+   "answer": "Setup > Company > Enable Features. Everything is organized by tab (Accounting, Transactions, Items & Inventory, etc.).",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 4.2
+  },
+  {
+   "id": "csv-import-path",
+   "module": "csv_import",
+   "question": "What's the menu path to start a CSV import?",
+   "expect_all": [
+    "Setup",
+    "Import/Export",
+    "Import CSV Records"
+   ],
+   "answer": "Setup > Import/Export > Import CSV Records.",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 1.9
+  },
+  {
+   "id": "subsidiary-path",
+   "module": "oneworld",
+   "question": "How do I create a new subsidiary?",
+   "expect_all": [
+    "Setup",
+    "Company",
+    "Subsidiaries"
+   ],
+   "answer": "Go to Setup > Company > Subsidiaries > New. Set up currencies first if you haven't already, then fill in the name, parent subsidiary, country, and currency on the new record. Create them top-down \u2014 root first, then children \u2014 and NetSuite best practice is to also create an elimination subsidiary as a child of each parent. Want me to walk through any specific field or gotcha?",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 21.6
+  },
+  {
+   "id": "accounting-periods-path",
+   "module": "accounting",
+   "question": "Where do I manage accounting periods?",
+   "expect_all": [
+    "Setup",
+    "Accounting",
+    "Manage Accounting Periods"
+   ],
+   "answer": "Setup > Accounting > Manage Accounting Periods. From there you can open, close, and lock periods for AR, AP, payroll, and the general ledger independently.",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 5.3
+  },
+  {
+   "id": "coa-path",
+   "module": "accounting",
+   "question": "Where is the chart of accounts?",
+   "expect_any": [
+    "Lists > Accounting > Accounts",
+    "Accounting > Accounts"
+   ],
+   "answer": "Setup > Accounting > Chart of Accounts.",
+   "keyword_pass": false,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 1.9
+  },
+  {
+   "id": "externalid-import",
+   "module": "csv_import",
+   "question": "What is the purpose of the External ID field when importing records via CSV?",
+   "expect_any": [
+    "update",
+    "duplicate",
+    "match"
+   ],
+   "expect_all": [
+    "external"
+   ],
+   "answer": "External ID is a unique identifier from your source system that NetSuite stores on the record, and it serves two purposes: it lets you match records on future imports without needing NetSuite's internal IDs, and it prevents duplicate records from being created when you run the same import twice with \"Add or Update\" mode. Think of it as your cross-reference key between your external system and NetSuite.",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 22.4
+  },
+  {
+   "id": "import-date-format",
+   "module": "csv_import",
+   "question": "What date format should I use in a CSV import file?",
+   "expect_any": [
+    "MM/DD/YYYY",
+    "preference",
+    "Personal Preferences"
+   ],
+   "answer": "The date format must match the date preference set for the user doing the import, which you can check at Home > Set Preferences under the Formatting section. In most US accounts that's MM/DD/YYYY, but if it's set differently your CSV dates need to match that exactly or the import will reject them.",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 21.3
+  },
+  {
+   "id": "ss-record-module",
+   "module": "suitescript",
+   "question": "Which SuiteScript 2.x module do I use to load or create a record?",
+   "expect_any": [
+    "N/record"
+   ],
+   "answer": "`N/record` -- that's the module for loading, creating, copying, and submitting records. You'd `require(['N/record'], function(record) {...})` or in ES6 module style `import record from 'N/record'`.",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 14.2
+  },
+  {
+   "id": "ss-search-module",
+   "module": "suitescript",
+   "question": "Which SuiteScript 2.x module runs saved searches?",
+   "expect_any": [
+    "N/search"
+   ],
+   "answer": "The `N/search` module. You load it with `require(['N/search'], function(search){...})` and use `search.load()` for existing saved searches or `search.create()` to build one on the fly.",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 24.1
+  },
+  {
+   "id": "ss-ue-entrypoints",
+   "module": "suitescript",
+   "question": "What are the entry points of a user event script?",
+   "expect_all": [
+    "beforeLoad",
+    "beforeSubmit",
+    "afterSubmit"
+   ],
+   "answer": "The three entry points are `beforeLoad`, `beforeSubmit`, and `afterSubmit`. `beforeLoad` fires when a record is read/opened, `beforeSubmit` fires before a write operation (create, edit, delete), and `afterSubmit` fires right after that write completes. Want detail on any of them?",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 22.3
+  },
+  {
+   "id": "ss-mapreduce",
+   "module": "suitescript",
+   "question": "Which script type should I use to process a large number of records in the background?",
+   "expect_any": [
+    "Map/Reduce",
+    "map reduce",
+    "mapreduce"
+   ],
+   "answer": "Map/Reduce is what you want. It's designed specifically for this -- it splits work across stages (getInputData, map, reduce, summarize), handles governance automatically by yielding between chunks, and if you're on SuiteCloud Plus you can even run it across multiple processors in parallel. A Scheduled script will hit its 10,000 unit ceiling and stop, whereas Map/Reduce keeps going. Want a quick rundown of how the stages work?",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 22.2
+  },
+  {
+   "id": "ss-restlet",
+   "module": "suitescript",
+   "question": "Which script type lets an external system call NetSuite over HTTP with custom logic?",
+   "expect_any": [
+    "RESTlet",
+    "Suitelet"
+   ],
+   "answer": "Restlet. It runs server-side SuiteScript that an external system hits directly via HTTP, using NetSuite's own URL scheme, with token-based auth or NLAuth. It's the go-to for custom integrations where SuiteTalk/REST feels too rigid.",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 15.8
+  },
+  {
+   "id": "ss-client-entry",
+   "module": "suitescript",
+   "question": "Name three client script entry points.",
+   "expect_any": [
+    "pageInit",
+    "fieldChanged",
+    "saveRecord",
+    "validateField",
+    "postSourcing"
+   ],
+   "answer": "pageInit, fieldChanged, and saveRecord are three common ones.",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 2.3
+  },
+  {
+   "id": "segments",
+   "module": "accounting",
+   "question": "What are the three standard classification segments in NetSuite?",
+   "expect_all": [
+    "department",
+    "class",
+    "location"
+   ],
+   "answer": "The three standard classification segments in NetSuite are Class, Department, and Location. They can be applied to transactions and GL lines to slice your financial reporting, and they're distinct from custom segments which you'd build separately.",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 19.1
+  },
+  {
+   "id": "mandatory-field-no-code",
+   "module": "suitecloud",
+   "question": "How can I make a field mandatory on a record without writing code?",
+   "expect_any": [
+    "custom form",
+    "form",
+    "workflow"
+   ],
+   "answer": "You do it through a custom form. Go to Customization > Forms > Transaction Forms (or Entry Forms for non-transaction records), open the form you want, go to the Screen Fields subtab, and check the Mandatory checkbox next to the field. Save the form and set it as preferred so users land on it by default.\n\nOne catch: this only enforces mandatory at the UI level on that form. If someone saves via API or a different form, it won't be enforced, so if you need true hard enforcement you'd eventually need a script or workflow validation.",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 24.4
+  },
+  {
+   "id": "negative-inventory",
+   "module": "inventory",
+   "question": "What preference controls whether inventory can go negative?",
+   "expect_any": [
+    "Allow Negative Inventory"
+   ],
+   "answer": "It's the \"Prevent Negative Inventory\" preference under Setup > Company > General Preferences > Custom Preferences (in the Enhanced Validations and Defaulting section). Note that this is part of a SuiteApp, so if you don't see it there you'll need to install the Enhanced Validations and Defaulting SuiteApp first. Without it enabled, NetSuite just warns you but still lets you save.",
+   "keyword_pass": false,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 22.2
+  },
+  {
+   "id": "item-types",
+   "module": "inventory",
+   "question": "What item types exist in NetSuite?",
+   "expect_all": [
+    "inventory",
+    "service"
+   ],
+   "expect_any": [
+    "kit",
+    "assembly",
+    "non-inventory"
+   ],
+   "answer": "Here's the full list of item types in NetSuite:\n\nInventory Items: Inventory Item, Serialized Inventory Item, Lot Numbered Inventory Item.\n\nAssembly Items: Assembly Item, Serialized Assembly Item, Lot Numbered Assembly Item. These are manufactured from component items (Bill of Materials).\n\nKit/Package Item: a bundle of items sold as one, but not built like an assembly. Price is independent of components.\n\nNon-Inventory Item: for things you buy/sell but don't track stock for. Comes in for-purchase, for-sale, and for-resale subtypes.\n\nService Item: same subtype structure as non-inventory (for sale, for resale). Used for labor, subscriptions, etc.\n\nOther Charge Item: for freight, handling, or misc charges on transactions.\n\nDescription Item: adds a text line to a transaction with no price or quantity.\n\nDiscount Item: applies a percentage or flat discount to a transaction line or the whole order.\n\nMarkup Item: opposite of discount, adds a markup amount.\n\nSubtotal Item: inserts a running subtotal line on a transaction.\n\nPayment Item: used to record a payment line on an invoice.\n\nGift Certificate Item: for selling and redeeming gift certs.\n\nDownload Item: for digital/file delivery items.\n\nShipping Item: represents shipping charges; ties into shipping carriers.\n\nWant me to go deeper on any of these?",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 35.2
+  },
+  {
+   "id": "rest-permission",
+   "module": "suitetalk",
+   "question": "What permission does a role need to use REST web services?",
+   "expect_any": [
+    "REST Web Services"
+   ],
+   "answer": "<error: 503 Server Error: Service Unavailable for url: https://web-production-5ff2c9.up.railway.app/chat>",
+   "keyword_pass": false,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 0.5
+  },
+  {
+   "id": "suiteql",
+   "module": "suiteanalytics",
+   "question": "What is SuiteQL?",
+   "expect_any": [
+    "SQL",
+    "query"
+   ],
+   "answer": "SuiteQL is NetSuite's SQL-92-based query language for querying your NetSuite data directly, with support for joins, aggregations, and complex filtering that saved searches can't easily do. You can use it via SuiteScript's N/query module, SuiteTalk REST web services, or SuiteAnalytics Connect (ODBC/JDBC). Want me to show you an example query or explain how to run one?",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 19.0
+  },
+  {
+   "id": "saved-search-parts",
+   "module": "suiteanalytics",
+   "question": "What are the two main tabs you configure on a saved search?",
+   "expect_all": [
+    "Criteria",
+    "Results"
+   ],
+   "answer": "The Criteria tab (which sets your filters) and the Results tab (which controls what columns show up in the output).",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 10.9
+  },
+  {
+   "id": "intercompany",
+   "module": "oneworld",
+   "question": "What do I need for transactions between two subsidiaries?",
+   "expect_any": [
+    "intercompany"
+   ],
+   "answer": "The key things you need: OneWorld enabled, the Automated Intercompany Management feature turned on (Setup > Company > Enable Features), intercompany elimination accounts set up on your chart of accounts with the \"Eliminate Intercompany Transactions\" box checked, and intercompany customer/vendor records created to represent each subsidiary as a trading entity.\n\nThen go to Setup > Accounting > Preferences > Intercompany Preferences to wire up the default receivables, payables, and other elimination accounts. Want me to walk through any specific piece -- inventory transfers, journal entries, or the entity setup?",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 26.0
+  },
+  {
+   "id": "tba",
+   "module": "administration",
+   "question": "What authentication method should an integration use for REST web services?",
+   "expect_any": [
+    "Token-Based Authentication",
+    "TBA",
+    "OAuth"
+   ],
+   "answer": "OAuth 2.0 is the preferred method for REST web services. TBA (Token-Based Authentication) is also supported if OAuth 2.0 isn't an option, but NetSuite's own docs explicitly call out OAuth 2.0 as preferred. Want me to walk through setting up either one?",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 16.1
+  },
+  {
+   "id": "customer-name-fields",
+   "module": "data_model",
+   "question": "Which fields hold a customer's name for a company versus an individual?",
+   "expect_any": [
+    "companyname"
+   ],
+   "expect_all": [
+    "firstname",
+    "lastname"
+   ],
+   "answer": "It all hinges on `isperson`. When that's F (company), the name lives in `companyname` (max 83 chars). When it's T (individual), you use `firstname` and `lastname` instead. All three fields are technically optional in the schema, but companyname is effectively required for companies and firstname/lastname are effectively required for individuals.",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 16.7
+  },
+  {
+   "id": "close-period",
+   "module": "accounting",
+   "question": "How do I close an accounting period?",
+   "expect_any": [
+    "Manage Accounting Periods",
+    "period close checklist",
+    "Period Close"
+   ],
+   "answer": "Go to Setup > Accounting > Manage GL > Manage Accounting Periods, find the period you want to close, and work through the Period Close Checklist \u2014 it walks you through locking A/P, A/R, and Payroll first, then lets you close once everything's balanced. You'll need the Manage Accounting Periods permission at Edit or Full level, and if your role has Period Closing Management permission you can use Quick Close to do it in one click. Want me to walk through any specific step?",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 21.1
+  },
+  {
+   "id": "ss-governance",
+   "module": "suitescript",
+   "question": "What is SuiteScript governance?",
+   "expect_any": [
+    "usage units",
+    "governance units",
+    "units"
+   ],
+   "answer": "Governance is NetSuite's way of preventing any single script from hogging server resources. It works on a \"usage units\" system where each API call costs a certain number of units, and each script type has a hard cap per execution - if you hit the cap, the script is terminated with an error.\n\nThe limits vary by script type: a client script gets 5,000 units, a user event gets 10,000, a scheduled script gets 10,000, and a map/reduce script manages governance per stage rather than globally, which is why it's the right tool for processing large data sets. Want me to go deeper on any specific script type or how to work around governance limits?",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 24.1
+  }
+ ]
+}
