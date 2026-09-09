@@ -29,7 +29,8 @@ Everything persistent lives in PostgreSQL (Railway managed Postgres, `DATABASE_U
 - `api/` — FastAPI. `main.py` starts in degraded mode (503s + `/health.startup_error`) if init fails instead of crashing. `CRAWL_ON_STARTUP=0` disables the automatic crawl.
 - `web/app.py` — Streamlit UI (Chat, Knowledge Base incl. catalog + crawler controls, Projects, Data Tools). Talks to the API at `NS_AGENT_API`.
 - `cli/main.py` — Click CLI.
-- `eval/` — `netsuite_qa.jsonl` question set and `run_eval.py` (keyword + Claude-judge scoring against `/chat`).
+- `eval/` — `netsuite_qa.jsonl` (lookup questions), `netsuite_hard.jsonl` (judgment questions, including five written by the product owner and tagged `source: founder`) and `run_eval.py` (keyword + Claude-judge scoring against `/chat`). The judge needs `ANTHROPIC_API_KEY` in the environment running the eval; without it every `judge_pass` is null and only the near-meaningless keyword score is produced.
+- `docs/BRAIN.md` — the state of turning the crawled corpus into expertise, and what to do next. Read it before working on distillation or the eval.
 - `tools/netsuite_extract.py` — run locally with TBA credentials to export the REST metadata catalog as a zip.
 
 ## API
@@ -82,7 +83,7 @@ Sandbox note: agent containers capture their network policy at start. If Railway
 1. **SOAP schema catalog + Help Center** run automatically on startup (or via the Knowledge Base tab / `POST /knowledge/crawl/start`). Progress in the UI or `GET /knowledge/crawl/status`. The catalog import takes seconds; the docs crawl runs for hours and resumes where it left off.
 2. **REST metadata catalog** (optional, adds an account's custom fields): the owner does not run scripts against NetSuite, so `tools/netsuite_extract.py` is unused. It remains the path for a future customer connector — its output uploads via `POST /knowledge/catalog/import` and flags custom fields `is_custom`.
 3. **Manual uploads** — Help Center PDFs, SuiteAnswers articles, notes. Tag with a `module` where possible.
-4. **Measure**: `python eval/run_eval.py --api <web url>`; add questions to `eval/netsuite_qa.jsonl` as gaps are found.
+4. **Measure**: `python eval/run_eval.py --api <web url> --file eval/netsuite_hard.jsonl`; confirm the run prints a `Judge score:` line, or the result is keyword-only and does not measure expertise. Add questions as gaps are found — judgment questions to `netsuite_hard.jsonl`, lookups to `netsuite_qa.jsonl`.
 
 ## Local development
 
