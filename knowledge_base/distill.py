@@ -85,11 +85,15 @@ class Distiller:
                     (module, limit),
                 )
             else:
+                # DISTINCT and ORDER BY random() can't coexist in one SELECT,
+                # so dedupe in a subquery and sample from that.
                 cur.execute(
                     """
-                    SELECT DISTINCT title FROM knowledge_documents
-                    WHERE module IS NULL AND title IS NOT NULL AND length(title) > 8
-                      AND doc_type = 'help'
+                    SELECT title FROM (
+                        SELECT DISTINCT title FROM knowledge_documents
+                        WHERE module IS NULL AND title IS NOT NULL
+                          AND length(title) > 8 AND doc_type = 'help'
+                    ) t
                     ORDER BY random() LIMIT %s
                     """,
                     (limit,),
