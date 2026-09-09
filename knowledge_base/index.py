@@ -19,9 +19,11 @@ _MODEL_NAME = "all-MiniLM-L6-v2"
 # Columns promoted out of the metadata blob so they can be filtered/indexed.
 TAG_COLUMNS = ("system", "module", "doc_type", "version", "title", "url", "tenant_id")
 
-# Rank boost applied to a tenant's own documents over shared knowledge
-# (subtracted from cosine distance, so lower is better).
+# Rank boosts, subtracted from cosine distance so lower is better.
+# A tenant's own documents outrank shared knowledge, and a distilled guide
+# outranks the raw fragments it was written from.
 _TENANT_BOOST = 0.05
+_GUIDE_BOOST = 0.06
 
 
 class KnowledgeIndex:
@@ -139,6 +141,7 @@ class KnowledgeIndex:
             WHERE {' AND '.join(clauses)}
             ORDER BY (embedding <=> %s)
                      - CASE WHEN tenant_id = %s THEN {_TENANT_BOOST} ELSE 0 END
+                     - CASE WHEN doc_type = 'guide' THEN {_GUIDE_BOOST} ELSE 0 END
             LIMIT %s
         """
         with db.connection() as conn, conn.cursor() as cur:

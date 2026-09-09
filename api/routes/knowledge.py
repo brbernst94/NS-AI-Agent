@@ -50,8 +50,8 @@ class KnowledgeStats(BaseModel):
 
 
 class CrawlStartRequest(BaseModel):
-    target: str = Field("all", description="docs | catalog | all")
-    max_pages: int | None = Field(None, ge=1)
+    target: str = Field("all", description="docs | catalog | distill | all")
+    max_pages: int | None = Field(None, ge=1, description="For distill, the number of topics to write")
 
 
 # ---------------------------------------------------------------------------
@@ -251,6 +251,14 @@ async def crawl_start(body: CrawlStartRequest, cm: Any = Depends(get_crawl_manag
 @router.get("/crawl/status")
 async def crawl_status(cm: Any = Depends(get_crawl_manager)) -> dict[str, Any]:
     return cm.status()
+
+
+@router.get("/distill/stats")
+async def distill_stats(agent: Any = Depends(get_agent)) -> dict[str, Any]:
+    """Topic coverage and how many guides have been written."""
+    from knowledge_base import distill
+
+    return distill.stats()
 
 
 @router.get("/crawl/health")

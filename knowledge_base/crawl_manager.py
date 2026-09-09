@@ -10,7 +10,7 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-TARGETS = ("docs", "catalog", "all")
+TARGETS = ("docs", "catalog", "distill", "all")
 
 # Bound on how many times a docs crawl restarts itself after hitting its page
 # cap, so a link loop can never spin forever.
@@ -27,6 +27,7 @@ class CrawlManager:
         self.jobs: dict[str, dict[str, Any]] = {
             "docs": {"state": "idle"},
             "catalog": {"state": "idle"},
+            "distill": {"state": "idle"},
         }
 
     @property
@@ -39,6 +40,8 @@ class CrawlManager:
         with self._lock:
             if self.running:
                 return {"started": False, "reason": "a crawl is already running", **self.status()}
+            # "all" deliberately excludes distill: it costs Anthropic credits
+            # and should only run when explicitly asked for.
             targets = ["catalog", "docs"] if target == "all" else [target]
             self._thread = threading.Thread(
                 target=self._run, args=(targets, max_pages), daemon=True, name="knowledge-crawler"
@@ -59,7 +62,14 @@ class CrawlManager:
             except Exception as exc:
                 logger.warning("Could not record run start for %s: %s", t, exc)
             try:
-                if t == "catalog":
+                if t == "distill":
+                    from knowledge_base.distill import Distiller
+
+                    crawler = Distiller(self.knowledge_index)
+                    self._current = crawler
+                    n = crawler.crawl(max_records=max_pages)
+                    job["result"] = {"guides": n, **crawler.report}
+                elif t == "catalog":
                     from knowledge_base.soap_schema import SoapSchemaImporter
 
                     crawler = SoapSchemaImporter(self.catalog)

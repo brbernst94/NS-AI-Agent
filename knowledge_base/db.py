@@ -250,6 +250,20 @@ _CATALOG_DDL = [
     )
     """,
     "CREATE INDEX IF NOT EXISTS crawl_runs_crawler_idx ON crawl_runs(crawler, started_at DESC)",
+    # Topics the corpus covers, and whether a distilled guide exists for each.
+    """
+    CREATE TABLE IF NOT EXISTS kb_topics (
+        id           SERIAL      PRIMARY KEY,
+        module       TEXT,
+        topic        TEXT        NOT NULL UNIQUE,
+        status       TEXT        NOT NULL DEFAULT 'pending',
+        guide_chunks INTEGER     DEFAULT 0,
+        error        TEXT,
+        created_at   TIMESTAMPTZ DEFAULT NOW(),
+        updated_at   TIMESTAMPTZ DEFAULT NOW()
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS kb_topics_status_idx ON kb_topics(status)",
 ]
 
 
