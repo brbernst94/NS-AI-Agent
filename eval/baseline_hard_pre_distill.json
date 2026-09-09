@@ -1,0 +1,528 @@
+{
+ "api": "https://web-production-5ff2c9.up.railway.app",
+ "keyword_pass": 29,
+ "judge_pass": 0,
+ "n": 30,
+ "results": [
+  {
+   "id": "bin-upgrade-trap",
+   "topic": "inventory",
+   "question": "We already use basic Bin Management with lot-numbered items. If I now enable Advanced Bin/Numbered Inventory Management, what breaks and what must I do about it?",
+   "expect_any": [
+    "lose",
+    "lost",
+    "dropped",
+    "no longer",
+    "unassigned",
+    "removed"
+   ],
+   "expect_all": [
+    "put",
+    "away"
+   ],
+   "answer": "Here's the honest picture, because this upgrade has some real gotchas specific to your situation.\n\nThe biggest immediate break is that the moment you enable the feature, every lot-numbered item that currently has a bin assignment loses it. NetSuite drops those associations entirely on upgrade. You have to reassign them all using the Bin Putaway Worksheet before any transactions involving those items will work correctly again. Do a full inventory of your current lot/bin assignments before you flip the switch so you have a reference to work from.\n\nThe second thing that breaks is any SuiteScript you have written against basic Bin Management. The Inventory Detail subrecord behaves differently under advanced bin, and scripts that touched bin fields on transactions will stop functioning. You need to audit every script that touches bin or inventory detail logic and rewrite it against the advanced bin Inventory Detail subrecord API.\n\nA few other things to know: on transactions you now have to explicitly populate the Inventory Detail subrecord to specify which lot goes in which bin - it's no longer implicit. Also, if you use NSPOS or SuiteCommerce InStore anywhere, those don't support this feature at all for lot-numbered items. And if you have assembly items with lot-tracked components, the bin assignment rules get more demanding at build time - a missing bin on a component will error the build.\n\nThe safe sequence is: document all current lot/bin assignments, audit your scripts, enable the feature in a sandbox first, run through your Putaway Worksheet to re-establish assignments, then test every transaction type that touches a lot-numbered item before going to production. Want me to go deeper on any of those pieces?",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 29.2
+  },
+  {
+   "id": "subsidiary-order",
+   "topic": "oneworld",
+   "question": "What has to exist before I can create a new subsidiary in OneWorld, and what can never be changed afterwards?",
+   "expect_any": [
+    "currency",
+    "country"
+   ],
+   "answer": "Before creating a subsidiary, the currency you want to assign to it must already exist in your account -- go to Lists > Accounting > Currencies and create it first if it's not there. You'll also need to know your parent subsidiary in the hierarchy and have your nexus set up if tax is relevant.\n\nAs for what's locked forever once transactions exist: currency, country, edition, legal name, and the elimination flag cannot be changed. If you haven't posted any transactions yet you technically can change the currency, but you'd have to delete the nexus and subsidiary and recreate them -- it's not an in-place edit. Treat those fields as permanent from day one.",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 18.2
+  },
+  {
+   "id": "csv-duplicates",
+   "topic": "csv_import",
+   "question": "A CSV customer import ran successfully but created duplicate records instead of updating existing ones. What went wrong?",
+   "expect_any": [
+    "external id",
+    "externalid",
+    "internal id"
+   ],
+   "expect_all": [
+    "update"
+   ],
+   "answer": "Almost certainly one of two things: the import was run with \"Add\" data handling instead of \"Add or Update\" (or \"Update\"), or the CSV didn't include a proper primary key column mapped to Internal ID or External ID, so NetSuite had no way to match rows to existing records and just created new ones.\n\nFor updates to work, you need both things together -- the right data handling option AND a key field. The best key is Internal ID (export your existing customers via saved search to get those), or External ID if you previously stamped one on the records. Without a matchable key, NetSuite treats every row as a net-new record regardless of name or other fields. Want me to walk through the exact fix?",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 14.8
+  },
+  {
+   "id": "mapreduce-vs-scheduled",
+   "topic": "suitescript",
+   "question": "When should I choose a Map/Reduce script over a Scheduled script, and why?",
+   "expect_any": [
+    "governance",
+    "usage",
+    "yield",
+    "large",
+    "volume",
+    "parallel"
+   ],
+   "answer": "Use Map/Reduce any time you're processing more than a handful of records or need parallelism. The key advantages are: it automatically handles governance by yielding and rescheduling jobs when you're about to hit limits, and the map and reduce stages run in parallel across multiple processors, so large data sets finish dramatically faster than a Scheduled script grinding through them serially.\n\nStick with a Scheduled script when the logic is simple, the data set is small and bounded, and you don't need parallel processing \u2014 it's less complexity to write and debug. The moment you're looping over thousands of records and worrying about governance limits, switch to Map/Reduce.",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 12.4
+  },
+  {
+   "id": "custom-record-vs-segment",
+   "topic": "suitecloud",
+   "question": "What is the practical difference between a Custom Record and a Custom Segment, and when would I use each?",
+   "expect_any": [
+    "classif",
+    "segment",
+    "gl impact",
+    "reporting",
+    "dimension"
+   ],
+   "answer": "The knowledge base didn't surface a clean comparison article, so I'll give you the straight answer from the data model.\n\nA Custom Record is a standalone table you invent \u2014 it has its own records, its own list of fields, and you relate it to other records via a custom field. Use it when you're storing data that has multiple attributes or rows of its own, like a list of equipment with serial numbers, locations, and maintenance dates.\n\nA Custom Segment is specifically a classification dimension \u2014 think of it like Department, Class, or Location, but one you define yourself. The key difference is that a segment gets stamped across transactions and their GL lines automatically, shows up natively in financial reports and saved searches without joins, and can drive GL impact. Use it when you need to slice P&L or balance sheet data by some dimension (say, \"Business Unit\" or \"Project Type\") that NetSuite's built-in classifications don't cover.\n\nThe short version: if you need to report on it financially or classify transactions by it, use a Custom Segment. If you're just storing related data or building a lookup table, use a Custom Record.",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 16.2
+  },
+  {
+   "id": "cannot-delete-customer",
+   "topic": "data_model",
+   "question": "Why might NetSuite refuse to let me delete a customer record, and what should I do instead?",
+   "expect_any": [
+    "transaction",
+    "referenc",
+    "dependenc"
+   ],
+   "expect_all": [
+    "inactiv"
+   ],
+   "answer": "The most common reason is that the customer has transactions attached to it \u2014 invoices, payments, sales orders, anything \u2014 and NetSuite will not let you delete a record that has financial history because it would break the audit trail.\n\nThe right move is to make the customer inactive instead: open the record, check the \"Inactive\" box, and save. That hides them from all dropdowns and lists without destroying the history. If you genuinely need the record gone and there are no transactions, you also need to make sure you have the Customers permission at Full level, and that no other records (contacts, subscriptions, cases) are still linked to it.",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 16.8
+  },
+  {
+   "id": "period-close-order",
+   "topic": "accounting",
+   "question": "Walk me through the correct order of a period close in NetSuite, and what must be done before the period can be locked.",
+   "expect_any": [
+    "reconcil",
+    "checklist",
+    "review",
+    "lock",
+    "bank"
+   ],
+   "answer": "Here's how it works, in sequence.\n\nYou get to the checklist at Setup > Accounting > Manage GL > Manage Accounting Periods, then click the Checklist icon for the period. The tasks are displayed in the order they should be done, and NetSuite enforces a lot of the sequencing for you.\n\nThe typical order is: run any automated intercompany eliminations, do open currency balance revaluations, calculate consolidated exchange rates (if OneWorld), reconcile accounts, then lock A/R, lock A/P, lock Payroll (if applicable), and finally Lock All. Lock All is what blocks all transaction posting for the period. Once all of those locks are in place and every checklist task is marked complete, you can hit Close Period.\n\nA few hard rules to know before you try to close. All prior periods must already be closed before NetSuite will let you close the current one -- you can lock a period while earlier ones are still open, but you cannot close it. The period close checklist tasks like revaluations and intercompany adjustments require both the Manage Accounting Periods permission (Edit or Full) and the Override Period Restrictions permission, so if someone gets an access error mid-checklist that's usually why. Also, if you reopen a closed period, any later closed periods automatically reopen with it, so you'll have to re-run checklist tasks for all of them.\n\nWant me to go deeper on any specific step, like revaluations or how OneWorld handles subsidiary-level locks?",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 32.8
+  },
+  {
+   "id": "reopen-closed-period",
+   "topic": "accounting",
+   "question": "What happens if I need to post a transaction into a period that is already closed?",
+   "expect_any": [
+    "reopen",
+    "unlock",
+    "permission",
+    "role"
+   ],
+   "answer": "You have two options. The cleaner path is to reopen the period at Setup > Accounting > Manage G/L > Manage Accounting Periods, post what you need, then close it again, but be warned: reopening a period automatically reopens all subsequent closed periods too, so you'll have to re-run the close checklist for all of them.\n\nThe other option is to just post the transaction into the next open period instead and use a journal entry dated in the open period to make the adjustment, which avoids touching closed periods entirely. NetSuite also has an accounting preference called \"Default Posting Period When Transaction Date in Closed Periods\" that controls where the system redirects transactions automatically when the date falls in a closed period. Want me to dig into any of those options?",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 28.0
+  },
+  {
+   "id": "saved-search-vs-workbook",
+   "topic": "suiteanalytics",
+   "question": "When should I build a Saved Search rather than a SuiteAnalytics Workbook?",
+   "expect_any": [
+    "real-time",
+    "real time",
+    "workflow",
+    "script",
+    "dashboard",
+    "portlet",
+    "alert"
+   ],
+   "answer": "Use a Saved Search when you need real-time data, when the results need to trigger alerts or emails, when you want to surface results in a dashboard portlet or as a KPI, or when a SuiteScript needs to query it via `nlapiSearchRecord` / `N/search`. Also use it when you need to join from a specific record type the analytics data source doesn't support yet.\n\nUse a Workbook when you need pivots, charts, or cross-record joins that are painful to express in saved search formulas, or when you're doing deeper ad-hoc analysis and can tolerate the data being cached rather than live. The tradeoff is that Workbooks run against the analytics data source which has a refresh lag (though you can force real-time mode, it's slower), and you can't wire them into SuiteScript or workflow triggers the way you can a Saved Search.\n\nPractical rule of thumb: operational stuff (alerts, automation, dashboards people act on daily) stays in Saved Searches; analytical/reporting stuff (trends, pivots, exec dashboards) goes in Workbooks.",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 29.5
+  },
+  {
+   "id": "mandatory-per-role",
+   "topic": "suitecloud",
+   "question": "I need a field to be mandatory for one role but optional for another. How do I do that?",
+   "expect_any": [
+    "custom form",
+    "form",
+    "workflow",
+    "role"
+   ],
+   "answer": "<error: 502 Server Error: Bad Gateway for url: https://web-production-5ff2c9.up.railway.app/chat>",
+   "keyword_pass": false,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 18.3
+  },
+  {
+   "id": "inline-edit-workflow",
+   "topic": "suiteflow",
+   "question": "What are the risks of relying on inline editing when workflows or user event scripts are attached to a record?",
+   "expect_any": [
+    "not trigger",
+    "does not",
+    "won't",
+    "bypass",
+    "skip"
+   ],
+   "answer": "The core risk is execution context. Inline editing runs under the \"inline editing\" context, and if your script deployment or workflow isn't set to include that context, it simply won't fire -- no error, no warning, the save just goes through silently without your logic running.\n\nEven when the context is included, client scripts don't run at all during inline editing since there's no full form loaded, so any field-change validation or sourcing logic you put in a fieldChanged or saveRecord client script is completely bypassed. BeforeSubmit and afterSubmit user event scripts will fire if their deployment context allows it, but workflows are the bigger trap because their initiation and action contexts are configured separately, and people often only test them through the full form. The practical result is data that looks saved but is missing calculated fields, skipped approval state transitions, or validation that never ran.\n\nWant me to walk through how to check and fix the context settings on a specific script or workflow?",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 29.5
+  },
+  {
+   "id": "item-costing-change",
+   "topic": "inventory",
+   "question": "Can I change the costing method on an inventory item after transactions exist, and what are the consequences?",
+   "expect_any": [
+    "cannot",
+    "can't",
+    "not be changed",
+    "no transaction"
+   ],
+   "answer": "You cannot change the costing method once the item record is saved in NetSuite -- the field locks the moment you save it, regardless of whether transactions exist, and there is no UI way around this.\n\nThe real-world workaround is to make the old item inactive, create a new item with the correct costing method, and migrate open quantity/value via an inventory adjustment. The accounting implications of that are significant though -- your cost layers, average cost, and historical COGS reporting won't reconcile cleanly across the old and new items. Want me to walk through the migration approach or the reporting consequences?",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 22.0
+  },
+  {
+   "id": "multibook-purpose",
+   "topic": "accounting",
+   "question": "What problem does Multi-Book Accounting solve, and what should I know before enabling it?",
+   "expect_any": [
+    "secondary",
+    "adjustment",
+    "different",
+    "gaap",
+    "ifrs",
+    "irrevers",
+    "cannot be disabled"
+   ],
+   "answer": "The core problem it solves is needing to report the same transactions under multiple accounting standards simultaneously, like running US GAAP as your primary book and IFRS as a secondary book without duplicating data entry. One set of real transactions, multiple parallel ledgers with their own account mappings, period closes, and reports.\n\nBefore you enable it, the big things to know: it's OneWorld-only, the Full Multi-Book feature requires NetSuite Professional Services to turn it on (you can't just flip a switch yourself), and once you have active secondary books you can't easily reverse course. There are two flavors \u2014 Full Multi-Book for true parallel accounting and Adjustment-Only Books, which any OneWorld admin can enable independently and is simpler to set up. Want me to go deeper on how they differ, or on chart of accounts mapping?",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 26.5
+  },
+  {
+   "id": "intercompany-setup",
+   "topic": "oneworld",
+   "question": "What must be configured before intercompany transactions between two subsidiaries will work?",
+   "expect_any": [
+    "intercompany",
+    "elimination",
+    "represent",
+    "account"
+   ],
+   "answer": "Here's the short version of what needs to be in place:\n\nFirst, you need OneWorld enabled, both subsidiary records created, and an elimination subsidiary set up to absorb the offsetting entries. Then you need GL accounts flagged with \"Eliminate Intercompany Transactions\" checked, and those accounts assigned to the relevant subsidiaries.\n\nAfter that, enable either the Intercompany Framework or Automated Intercompany Management feature (or both) under Setup > Company > Enable Features, then go to Setup > Accounting > Preferences > Intercompany Preferences to assign the default intercompany receivables, payables, and other elimination accounts.\n\nOn top of that, the customers and vendors used in the transactions need to be associated with both subsidiaries, and any items used need to be accessible to both subsidiaries as well. Want me to go deeper on any of those pieces?",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 29.0
+  },
+  {
+   "id": "revrec-prereq",
+   "topic": "accounting",
+   "question": "What has to be in place before Advanced Revenue Management will generate revenue arrangements?",
+   "expect_any": [
+    "rule",
+    "revenue rec",
+    "revenue arrangement",
+    "item",
+    "plan"
+   ],
+   "answer": "Here's what needs to be in place before ARM will generate revenue arrangements:\n\nThe feature itself has to be enabled at Setup > Company > Enable Features (Accounting subtab) - \"Advanced Revenue Management (Essentials)\" at minimum, and Revenue Commitments if you're recognizing revenue before billing. Beyond the feature flag, every item on the transaction must have a revenue recognition rule assigned on its item record (Revenue Recognition/Amortization subtab), and a deferred revenue account must be set on the item as well - ARM won't create an arrangement for a line that's missing either of those. You also need your accounting periods set up and open, because ARM generates plans against periods and will error if there's nowhere to post.\n\nThe arrangement itself gets created when you save a qualifying sales order or invoice, so the source transaction also has to be in a state ARM is watching - typically a saved sales order (if you're using SO-based arrangements) or a posted invoice. Want me to go deeper on item config, the rule setup, or the transaction trigger behavior?",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 22.6
+  },
+  {
+   "id": "restlet-vs-suitelet",
+   "topic": "suitescript",
+   "question": "What is the difference between a RESTlet and a Suitelet, and when do I use each?",
+   "expect_any": [
+    "external",
+    "integration",
+    "ui",
+    "user interface",
+    "browser",
+    "authenticat"
+   ],
+   "answer": "A RESTlet is designed for machine-to-machine calls -- an external system or another script hits it via HTTP with GET/POST/PUT/DELETE and gets JSON or plain text back. A Suitelet is designed to render a page or UI inside NetSuite, though it can also return raw responses if you set the content type manually.\n\nThe practical rule: if an external app or integration needs to talk to NetSuite, use a RESTlet. If you're building a custom page or form that a NetSuite user will open in their browser, use a Suitelet. Want me to go deeper on authentication, governance limits, or deployment for either one?",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 12.7
+  },
+  {
+   "id": "governance-limits",
+   "topic": "suitescript",
+   "question": "My scheduled script keeps failing partway through on large data volumes. What is happening and how do I fix it?",
+   "expect_any": [
+    "governance",
+    "usage",
+    "limit",
+    "yield",
+    "map/reduce",
+    "reschedul"
+   ],
+   "answer": "Almost certainly a governance (usage unit) limit. Scheduled scripts get a hard cap of 10,000 usage units per run, and in SS2.x there is no `yield` or recovery point mechanism, so when you hit that limit the script just dies mid-process.\n\nThe real fix is to convert it to a Map/Reduce script. Map/Reduce was built exactly for this -- it splits work across parallel jobs, each chunk gets its own governance budget (1,000 units per map invocation, 5,000 per reduce), and if something fails it can resume rather than starting over. Your getInputData just returns the dataset, map/reduce handle each record in isolation, and you're no longer fighting a single 10k ceiling for the whole run.\n\nWant me to walk you through restructuring your script as a Map/Reduce, or talk through what each stage should do?",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 14.0
+  },
+  {
+   "id": "sublist-line-script",
+   "topic": "suitescript",
+   "question": "In SuiteScript 2.x, how do I read and set values on the line items of a sales order?",
+   "expect_any": [
+    "getsublistvalue",
+    "setsublistvalue",
+    "sublistid"
+   ],
+   "expect_all": [
+    "item"
+   ],
+   "answer": "The key methods are `getSublistValue` to read and `setSublistValue` to write in standard mode, or `getCurrentSublistValue`/`setCurrentSublistValue` in dynamic mode. The sublist you want on a sales order is `'item'`.\n\nStandard mode example (simplest for server-side scripts):\n\n```javascript\nvar so = record.load({ type: record.Type.SALES_ORDER, id: 123 });\n\nvar lineCount = so.getLineCount({ sublistId: 'item' });\n\nfor (var i = 0; i < lineCount; i++) {\n    var itemId = so.getSublistValue({ sublistId: 'item', fieldId: 'item', line: i });\n    var qty    = so.getSublistValue({ sublistId: 'item', fieldId: 'quantity', line: i });\n\n    // set a value\n    so.setSublistValue({ sublistId: 'item', fieldId: 'quantity', line: i, value: 10 });\n}\n\nso.save();\n```\n\nIn dynamic mode (required for client scripts running in the browser) you select the line first, then commit it:\n\n```javascript\nso.selectLine({ sublistId: 'item', line: i });\nso.setCurrentSublistValue({ sublistId: 'item', fieldId: 'quantity', value: 10 });\nso.commitLine({ sublistId: 'item' });\n```\n\nThe main gotcha: in dynamic mode you MUST call `commitLine` or your changes are silently lost. Also, line indexes are zero-based. Common item sublist field IDs are `item`, `quantity`, `rate`, `amount`, `description`, `taxcode`, `department`, `location`. Want a full list of the item sublist fields?",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 17.2
+  },
+  {
+   "id": "approval-routing",
+   "topic": "suiteflow",
+   "question": "How would I build multi-level approval routing on purchase orders without writing code?",
+   "expect_any": [
+    "suiteflow",
+    "workflow",
+    "state",
+    "approval"
+   ],
+   "answer": "The easiest starting point is the PO Approval Workflow SuiteApp (bundle 239645) -- install it from SuiteApp.com and it gives you a pre-built SuiteFlow workflow you can modify visually without touching code.\n\nFor true multi-level routing, the key setup is: enable Approval Routing under Setup > Company > Enable Features (SuiteCloud tab), then on each employee record set their Purchase Limit and Purchase Approver fields. The workflow walks the PO amount up the approver chain automatically until it hits someone whose limit covers the full amount.\n\nIf you need more custom logic -- like routing by department, subsidiary, or GL account rather than just dollar amount -- you extend the SuiteFlow workflow directly in Customization > Workflow > Workflows. You add states for each approval tier and use transitions with conditions (no code, just dropdown-driven condition builder) to control who gets it next. Want me to walk through the state/transition setup for a specific routing scenario?",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 19.5
+  },
+  {
+   "id": "tax-nexus",
+   "topic": "tax",
+   "question": "What determines whether NetSuite charges tax on a transaction, and what has to be set up for it to work?",
+   "expect_any": [
+    "nexus",
+    "tax code",
+    "tax schedule",
+    "subsidiary"
+   ],
+   "answer": "There are three things that have to align for tax to fire on a transaction: the nexus, the item taxability, and the customer/vendor taxability. If any one of those is missing or set to exempt, you get zero tax.\n\nFirst, nexus. NetSuite only calculates tax for jurisdictions where your company has nexus. In legacy tax you set those up at Setup > Accounting > Set Up Taxes, and in SuiteTax you assign tax registrations directly to the subsidiary. The ship-to or bill-to address on the transaction determines which nexus applies.\n\nSecond, the item has to be taxable. On the item record there's a \"Taxable\" flag (or in SuiteTax, non-taxability rules can override this). If that's unchecked, no tax regardless of anything else.\n\nThird, the customer (or vendor on the purchase side) has to be marked taxable, and they need a tax code or tax group assigned. A tax-exempt customer with a resale certificate should have a tax code that carries a 0% rate.\n\nOn the setup side you need: a vendor record typed as \"Tax Agency,\" tax types, tax codes pointing to that agency with a rate, and tax groups that bundle codes together. The tax group is what actually gets assigned to the customer and defaults onto the transaction. In SuiteTax the priority order for picking a tax code is entity default, then tax schedule, then nexus default \u2014 worth knowing when you're debugging unexpected rates. Want me to go deeper on any of those layers?",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 24.6
+  },
+  {
+   "id": "consolidated-exchange",
+   "topic": "oneworld",
+   "question": "How does NetSuite handle exchange rates when consolidating subsidiaries with different currencies?",
+   "expect_any": [
+    "consolidated exchange rate",
+    "current",
+    "historical",
+    "average"
+   ],
+   "answer": "NetSuite uses a consolidated exchange rate table (record type `consolidatedexchangerate`) that sits separately from your day-to-day transaction rates. Each record covers a specific period, subsidiary pair, and accounting book, and carries three rate types: Current (for balance sheet accounts), Average (for income statement accounts), and Historical (for equity accounts like paid-in capital).\n\nAt period end, NetSuite generates consolidation journals that translate each child subsidiary's balances up to the parent using whichever rate type is assigned to each account. Any imbalance caused by using different rate types for different account categories gets posted to the Cumulative Translation Adjustment (CTA) account, which is the standard GAAP mechanism for that. Want me to go deeper on the CTA calculation, the rate type account assignments, or how to set up the consolidated rate table?",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 15.6
+  },
+  {
+   "id": "duplicate-vendor-payment",
+   "topic": "purchasing",
+   "question": "What controls exist in NetSuite to prevent paying the same vendor bill twice?",
+   "expect_any": [
+    "duplicate",
+    "bill number",
+    "reference",
+    "approval",
+    "warn"
+   ],
+   "answer": "There are a few layers of native control here.\n\nThe most direct one is the duplicate invoice number warning. On a vendor bill, the \"Invoice #\" field (what the vendor prints on their bill) is checked against other bills for the same vendor, and you can set it to warn or hard-block at Setup > Accounting > Accounting Preferences > Items/Transactions, under \"Duplicate Number Warnings.\" Set it to \"Warn and Block\" and NetSuite won't let you save a bill with an invoice number already on file for that vendor.\n\nThe second control is simply the open/paid status. Once a bill is paid, it's closed and won't appear in Pay Bills or Pay Single Vendor as an open item, so you can't accidentally apply another payment to it.\n\nThird, if you use Bill Capture (the scanned/emailed invoice intake feature), it has its own duplicate detection that flags bills with the same reference number before they even get created.\n\nBeyond that, you're into process controls: bill approval workflows, requiring a PO match, and limiting who has the Enter Bills and Pay Bills permissions. Want me to go deeper on any of those?",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 19.5
+  },
+  {
+   "id": "fulfillment-flow",
+   "topic": "order_management",
+   "question": "Walk me through what happens to inventory and the general ledger at each step from sales order to cash receipt.",
+   "expect_any": [
+    "commit",
+    "fulfil",
+    "invoice",
+    "cogs",
+    "payment"
+   ],
+   "expect_all": [
+    "sales order"
+   ],
+   "answer": "The knowledge base didn't pull the clean summary I wanted, so I'll give this to you from the data model I know cold. Here's the full order-to-cash flow with the GL and inventory impact at each step.\n\nSales Order: no GL posting, no inventory impact. It creates a demand signal for the fulfillment queue and can reserve (soft-commit) inventory if you have the Inventory Commitment preference on, but nothing hits the books. The SO is a non-posting transaction.\n\nItem Fulfillment: this is where inventory moves. The moment you save the fulfillment, NetSuite relieves the on-hand quantity and posts a journal: debit COGS, credit Inventory Asset, both at the item's current costing method value (average cost, FIFO lot cost, standard cost, etc.). The exact cost depends on your costing method and what was on hand at that moment, which is why fulfilling against the wrong lot or location can produce a surprising COGS number.\n\nInvoice: revenue recognition happens here (assuming you're not using Advanced Revenue Management). NetSuite posts debit Accounts Receivable, credit Income. If the invoice is created by billing the sales order, the COGS entry is already done from the fulfillment, so the invoice itself only touches AR and revenue, not inventory. If you somehow invoice without a fulfillment (non-inventory items, service items), there's no inventory movement at all.\n\nPayment / Cash Receipt: debit Undeposited Funds (or the bank account directly if you skip that), credit Accounts Receivable. Inventory is completely untouched here.\n\nBank Deposit: if you used Undeposited Funds, the deposit moves money from Undeposited Funds to the actual bank account - debit Bank, credit Undeposited Funds. Still no inventory impact.\n\nThe thing people get wrong most often: they expect COGS to post when they create the invoice, but it actually posts at fulfillment. If you void or delete a fulfillment after the period closes, you get a reversal of that COGS entry back into that closed period, which can be a pain. Want me to go deeper on any specific step, costing methods, or what Advanced Revenue Management changes about the invoice step?",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 26.7
+  },
+  {
+   "id": "so-no-gl",
+   "topic": "order_management",
+   "question": "Does a sales order post to the general ledger? Explain.",
+   "expect_any": [
+    "no",
+    "does not",
+    "doesn't",
+    "not post"
+   ],
+   "answer": "No, a sales order does not post to the general ledger. It is a non-posting transaction in NetSuite, meaning it creates no debits or credits when saved or approved.\n\nThe GL impact happens downstream: fulfilling the order can post a COGS/inventory entry (debit COGS, credit inventory) if you ship inventory items, and billing the order creates an invoice which is the posting transaction that hits Accounts Receivable and Revenue. So the order itself is just a commitment -- the accounting follows the fulfillment and invoice, not the order.",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 14.8
+  },
+  {
+   "id": "bundle-vs-sdf",
+   "topic": "suitecloud",
+   "question": "What is the difference between deploying customisations with SuiteBundler versus SuiteCloud Development Framework?",
+   "expect_any": [
+    "sdf",
+    "source control",
+    "version",
+    "account customization",
+    "bundle"
+   ],
+   "answer": "SuiteBundler is a UI-driven, point-and-click tool inside NetSuite where you package customisations by selecting objects from a list and push them account-to-account. SDF is a code-first framework where your entire project lives on disk as XML and files, you deploy via CLI or IDE, and you can version-control everything properly with Git.\n\nThe practical difference is that SDF gives you dependency management, account customisation projects vs SuiteApp projects, CI/CD pipeline support, and is the only path Oracle is actively investing in. SuiteBundler still works but is frozen \u2014 no new features, and Oracle is pushing everyone to migrate off it. Want me to go into either one in more depth?",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 13.0
+  },
+  {
+   "id": "role-permission-debug",
+   "topic": "administration",
+   "question": "A user says they cannot see a record they should have access to. How do I systematically work out why?",
+   "expect_any": [
+    "role",
+    "permission",
+    "level",
+    "restrict",
+    "subsidiary",
+    "audit"
+   ],
+   "answer": "There are roughly five layers that can hide a record from a user, and you work through them in this order.\n\nFirst, check the role's permission for that record type. Go to Setup > Users/Roles > Manage Roles, open their role, and look on the Permissions subtab under the relevant tab (Transactions, Lists, Reports, or Custom Record Types). If the permission is missing or set to \"None\" that's your answer right there.\n\nSecond, check role restrictions. On the same role, look at the Restrictions subtab - if the role is restricted by subsidiary, department, class, or location and the record belongs to a segment outside those restrictions, the user simply won't see it.\n\nThird, check whether the user is actually assigned that role and is logged in under it, not a different one. People often have multiple roles and are in the wrong one.\n\nFourth, if it's a transaction or entity, check whether \"View\" is set to \"Own\" rather than \"All\" on the permission level - that means they can only see records where they are the assigned rep/owner/employee.\n\nFifth, if it's a custom record, check the Access Type on the custom record definition itself (Customization > Lists/Records/Files > Record Types) - it may be set to \"Require Custom Record Entries Permission\" and the role just doesn't have it, or the record-level permissions on that specific entry are locked down.\n\nIf you've cleared all five of those and it's still missing, the next place to look is audience on saved searches or portlets if they're trying to find it via a dashboard view rather than navigating directly. Want me to go deeper on any of these?",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 22.8
+  },
+  {
+   "id": "inventory-adjustment-vs-transfer",
+   "topic": "inventory",
+   "question": "When should I use an Inventory Adjustment versus an Inventory Transfer, and what is the GL impact of each?",
+   "expect_any": [
+    "adjust",
+    "transfer",
+    "location",
+    "quantity",
+    "gl",
+    "account"
+   ],
+   "answer": "Use an Inventory Adjustment when the total quantity or value of your inventory is actually changing -- shrinkage, damage, a physical count discrepancy, or a cost correction. It hits a GL account you specify (typically an Expense or COGS account like \"Inventory Shrinkage\") on one side and the Inventory asset account on the other, so it changes your balance sheet inventory value.\n\nUse an Inventory Transfer when the quantity is staying the same companywide but needs to move between locations (requires Multi-Location Inventory). The GL impact is purely between two Inventory asset accounts (one location's inventory goes down, the other goes up), so there's no P&L hit at all -- net effect on total inventory value is zero.\n\nThe practical tell: if your total inventory dollar value should change, it's an Adjustment. If only the location split changes, it's a Transfer. Want me to walk through the account setup or how costing methods like FIFO/LIFO affect the Adjustment?",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 17.8
+  },
+  {
+   "id": "sandbox-refresh",
+   "topic": "administration",
+   "question": "What should I be careful about immediately after a sandbox refresh?",
+   "expect_any": [
+    "email",
+    "integration",
+    "notification",
+    "credential",
+    "script",
+    "disable"
+   ],
+   "answer": "The biggest things to deal with immediately after a refresh, in rough priority order:\n\nTBA tokens are wiped. Every integration using Token-Based Authentication needs new tokens recreated in the sandbox -- the Consumer Key/Secret can be shared from production, but the Token Key/Secret are gone and must be regenerated. If you shared a single integration record between sandbox and production, do not regenerate Consumer credentials or you'll break prod.\n\nEmail will fire at real people if you don't lock it down first. Before doing anything else, go to Setup > Company > Email > Email Preferences and set the Sandbox Options to \"Send Email To\" with a safe internal address. This setting reverts to whatever you had configured in production after every refresh.\n\nScheduled scripts run as soon as the sandbox is live. If any of your scripts send emails, hit external APIs, or write to third-party systems, they can cause real damage the moment they trigger. Disable or update them before the sandbox becomes active, and check that any external endpoint URLs in script parameters or custom records are pointing at sandbox/test environments, not production ones.\n\nOAuth 2.0 and SSO configs also don't carry over cleanly, and any hardcoded production URLs in SuiteScript, workflow actions, or custom records (like webhook endpoints) will still point at production systems. Want me to go deeper on any of these?",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 21.0
+  },
+  {
+   "id": "custom-field-sourcing",
+   "topic": "suitecloud",
+   "question": "How do I make a custom field automatically pull its value from a related record?",
+   "expect_any": [
+    "sourc",
+    "related record",
+    "parent"
+   ],
+   "answer": "The feature you want is called \"Sourcing\" on a custom field. When you create or edit a custom field, go to the \"Sourcing & Filtering\" tab, set the \"Source List\" to the field on the current record that points to the related record (e.g. the Customer field), then set \"Source From\" to whichever field on that related record you want to pull the value from.\n\nOnce saved, whenever that source record field is populated, NetSuite automatically populates your custom field from it. Want me to walk through a specific example?",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 13.4
+  },
+  {
+   "id": "search-formula-limits",
+   "topic": "suiteanalytics",
+   "question": "What are the practical limits of saved searches that push people towards other tools?",
+   "expect_any": [
+    "export",
+    "row",
+    "limit",
+    "pivot",
+    "join",
+    "performance",
+    "10"
+   ],
+   "answer": "Here are the real-world walls people hit:\n\nThe 1,000-row UI display cap is the first thing people notice -- the results page paginates but exports are capped at around 1,000 rows by default unless you use the \"Export\" button or pull via SuiteScript/SuiteTalk, and even then very large result sets can time out mid-run.\n\nPerformance is the bigger killer. Saved searches run synchronously against the transactional database, so anything with many joins (especially transaction line + inventory detail + custom records), formula columns using SQL functions, or no indexed sort field will grind or outright time out. There's no query optimizer you can influence -- you get what NetSuite's engine decides to do.\n\nYou can only join records in the direction NetSuite allows from a given record type as the root. You can't do a true many-to-many join, you can't start from a line-level record and easily aggregate to header + related entity in one flat row, and you can't union two searches. The moment you need data from two unrelated record types in the same row, you're stuck.\n\nFormulas help a lot but they're limited to a subset of Oracle SQL functions, no subqueries, and formula fields don't feed into each other -- you can't reference one formula column inside another formula column in the same search.\n\nScheduling is also flaky: only one scheduled search runs at a time per account, so if they queue at the same time, all but one go on hold. And the scheduled email output is static -- no dynamic recipients based on a field value without SuiteScript backing it.\n\nThe typical escape routes are SuiteAnalytics Workbook (better joining, drag-and-drop pivots, actual table relationships), Analytics Warehouse (OTBI/OAC) for very large historical data, or SuiteScript to drive the search programmatically and handle the results in chunks. Want me to go deeper on any of those?",
+   "keyword_pass": true,
+   "judge_pass": null,
+   "judge_reason": "",
+   "seconds": 25.6
+  }
+ ]
+}

@@ -63,3 +63,6 @@ TEMP/
 # OS
 .DS_Store
 Thumbs.db
+
+# Ad-hoc eval runs; the named pre-distillation baselines are committed.
+eval/results_*.json
