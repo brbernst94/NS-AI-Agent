@@ -17,6 +17,8 @@ import streamlit as st
 
 API_BASE = os.getenv("NS_AGENT_API", "http://localhost:8000")
 _REQUEST_TIMEOUT = 120  # seconds
+# Sent when the API has API_ACCESS_KEY set; harmless when it does not.
+_HEADERS = {"X-API-Key": os.getenv("NS_AGENT_API_KEY", "")}
 
 st.set_page_config(
     page_title="NS-AI-Agent | NetSuite Migration Assistant",
@@ -43,7 +45,7 @@ def _parse_response(resp: requests.Response) -> dict | list | None:
 
 def api_get(path: str, params: dict | None = None) -> dict | list | None:
     try:
-        resp = requests.get(f"{API_BASE}{path}", params=params, timeout=_REQUEST_TIMEOUT)
+        resp = requests.get(f"{API_BASE}{path}", params=params, timeout=_REQUEST_TIMEOUT, headers=_HEADERS)
         resp.raise_for_status()
         return _parse_response(resp)
     except requests.exceptions.ConnectionError:
@@ -65,10 +67,10 @@ def api_get(path: str, params: dict | None = None) -> dict | list | None:
 def api_post(path: str, json_data: dict | None = None, files: dict | None = None) -> dict | None:
     try:
         if files:
-            resp = requests.post(f"{API_BASE}{path}", files=files, timeout=_REQUEST_TIMEOUT)
+            resp = requests.post(f"{API_BASE}{path}", files=files, timeout=_REQUEST_TIMEOUT, headers=_HEADERS)
         else:
             resp = requests.post(
-                f"{API_BASE}{path}", json=json_data, timeout=_REQUEST_TIMEOUT
+                f"{API_BASE}{path}", json=json_data, timeout=_REQUEST_TIMEOUT, headers=_HEADERS
             )
         resp.raise_for_status()
         return _parse_response(resp)
@@ -90,7 +92,7 @@ def api_post(path: str, json_data: dict | None = None, files: dict | None = None
 
 def api_patch(path: str, json_data: dict) -> dict | None:
     try:
-        resp = requests.patch(f"{API_BASE}{path}", json=json_data, timeout=_REQUEST_TIMEOUT)
+        resp = requests.patch(f"{API_BASE}{path}", json=json_data, timeout=_REQUEST_TIMEOUT, headers=_HEADERS)
         resp.raise_for_status()
         return _parse_response(resp)
     except Exception as exc:
@@ -100,7 +102,7 @@ def api_patch(path: str, json_data: dict) -> dict | None:
 
 def check_api_health() -> bool:
     try:
-        resp = requests.get(f"{API_BASE}/health", timeout=5)
+        resp = requests.get(f"{API_BASE}/health", timeout=5, headers=_HEADERS)
         return resp.status_code == 200
     except Exception:
         return False

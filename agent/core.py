@@ -206,6 +206,11 @@ class NSMigrationAgent:
         - Transformation rules
         - Best practices
         """
+        # Every chat otherwise costs two Claude calls: the answer, plus this.
+        # Set CHAT_LEARNING=0 to halve the per-conversation cost.
+        if os.getenv("CHAT_LEARNING", "1") == "0":
+            return
+
         # Don't extract from very short responses (likely errors or clarifications)
         if len(agent_response) < 100:
             return

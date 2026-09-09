@@ -76,6 +76,32 @@ def _initialize(app: FastAPI, attempt: int = 0) -> None:
         logger.info("Startup crawl: %s", result.get("targets") or result.get("reason"))
 
 
+_OPEN_PATHS = ("/health", "/docs", "/redoc", "/openapi.json")
+
+
+def _install_api_key_guard(app: FastAPI) -> None:
+    """Require a shared key on every route when API_ACCESS_KEY is set.
+
+    Without this the endpoints are open to anyone who knows the URL, and each
+    /chat call spends Anthropic credits. Off by default so nothing breaks
+    silently; set API_ACCESS_KEY to switch it on.
+    """
+    from fastapi.responses import JSONResponse
+
+    @app.middleware("http")
+    async def require_api_key(request, call_next):
+        expected = os.getenv("API_ACCESS_KEY")
+        path = request.url.path
+        if expected and not path.startswith(_OPEN_PATHS) and request.method != "OPTIONS":
+            supplied = request.headers.get("x-api-key") or ""
+            # Compare in constant time so the key can't be guessed by timing.
+            import hmac
+
+            if not hmac.compare_digest(supplied, expected):
+                return JSONResponse({"detail": "Missing or invalid X-API-Key"}, status_code=401)
+        return await call_next(request)
+
+
 def create_app() -> FastAPI:
     app = FastAPI(
         title="NS-AI-Agent API",
@@ -84,6 +110,8 @@ def create_app() -> FastAPI:
         docs_url="/docs",
         redoc_url="/redoc",
     )
+
+    _install_api_key_guard(app)
 
     app.add_middleware(
         CORSMiddleware,
