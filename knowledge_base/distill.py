@@ -258,7 +258,12 @@ class Distiller:
             cur.execute(
                 """
                 SELECT id, module, topic, kind, queries FROM kb_topics
-                WHERE status = 'pending' ORDER BY id LIMIT %s
+                WHERE status = 'pending'
+                -- Interactions first. They are the material the raw corpus
+                -- answers worst, and a run cut short by a restart would
+                -- otherwise spend itself entirely on feature topics.
+                ORDER BY (kind = 'interaction') DESC, id
+                LIMIT %s
                 """,
                 (limit,),
             )
