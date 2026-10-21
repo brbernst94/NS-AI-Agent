@@ -96,6 +96,7 @@ class NSMigrationAgent:
             except Exception:
                 pass
         system_prompt = get_system_prompt(project_context)
+        system_prompt += self._corrections_block(user_message)
 
         # Run agentic loop
         tool_calls_made: list[str] = []
@@ -280,6 +281,22 @@ class NSMigrationAgent:
     # Streaming support
     # ------------------------------------------------------------------
 
+    def _corrections_block(self, user_message: str) -> str:
+        """Practitioner corrections bearing on this question, as instruction.
+
+        Retrieval alone does not work here: a correction returned as a search
+        result competes with the rest of the corpus and loses to the model's
+        own prior. In the system prompt it is an instruction instead.
+        """
+        try:
+            from knowledge_base import corrections
+
+            block = corrections.relevant_for(self.knowledge_index, user_message)
+            return f"\n\n{block}" if block else ""
+        except Exception as exc:
+            logger.warning("Could not attach corrections to the prompt: %s", exc)
+            return ""
+
     def chat_stream(
         self,
         user_message: str,
@@ -315,6 +332,7 @@ class NSMigrationAgent:
             except Exception:
                 pass
         system_prompt = get_system_prompt(project_context)
+        system_prompt += self._corrections_block(user_message)
 
         tool_calls_made: list[str] = []
         iterations = 0

@@ -193,6 +193,44 @@ def find_duplicate(question: str, correction: str) -> int | None:
         return row[0] if row else None
 
 
+def relevant_for(knowledge_index: Any, question: str, n: int = 3, min_score: float = 0.35) -> str:
+    """Corrections bearing on this question, rendered for the system prompt.
+
+    A correction retrieved as a search result is just one document arguing with
+    the rest of the corpus, and the model sides with its own prior. Established
+    in testing: the agent could quote the correction verbatim when asked to, and
+    still contradicted it when answering normally. Put in the system prompt it
+    arrives as instruction rather than evidence, which is what it actually is.
+    """
+    try:
+        hits = knowledge_index.search(question, n_results=n, where={"doc_type": "correction"})
+    except Exception as exc:
+        logger.warning("Could not load corrections for prompt: %s", exc)
+        return ""
+    hits = [h for h in hits if h.get("score", 0) >= min_score]
+    if not hits:
+        return ""
+
+    parts = [
+        "## Established facts — these override everything",
+        "",
+        "A NetSuite practitioner working in a live account has established the following. "
+        "Each one corrects an answer this system previously got wrong. They outrank the "
+        "official documentation, every distilled guide, the search results you are about "
+        "to read, and your own prior belief — including when you feel confident the "
+        "opposite is true, which is exactly the situation these exist for.",
+        "",
+        "Do not hedge these back toward the documented answer, do not present both sides "
+        "as equally valid, and do not add a caveat that undercuts them. If what you were "
+        "about to say contradicts one of these, it is wrong. Say what these say.",
+        "",
+    ]
+    for h in hits:
+        text = (h.get("text") or "").split("Also asked as:")[0].strip()
+        parts.append(f"- {text}")
+    return "\n".join(parts)
+
+
 def save_correction(
     knowledge_index: Any,
     question: str,
