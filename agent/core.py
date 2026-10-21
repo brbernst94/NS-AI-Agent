@@ -206,9 +206,17 @@ class NSMigrationAgent:
         - Transformation rules
         - Best practices
         """
-        # Every chat otherwise costs two Claude calls: the answer, plus this.
-        # Set CHAT_LEARNING=0 to halve the per-conversation cost.
-        if os.getenv("CHAT_LEARNING", "1") == "0":
+        # OFF by default, and it should stay off until something verifies the
+        # answer first. This summarises the agent's OWN response and files it as
+        # knowledge with no check that it is true. Observed in production: the
+        # agent answered a SuiteBilling question wrongly, stored the wrong
+        # answer as a learning three times over, and those chunks then outranked
+        # the practitioner correction that contradicted them — the agent was
+        # manufacturing corroboration for its own mistakes. Human-verified
+        # corrections (knowledge_base/corrections.py) are the learning path.
+        # Set CHAT_LEARNING=1 to re-enable; it also costs a second Claude call
+        # per conversation.
+        if os.getenv("CHAT_LEARNING", "0") != "1":
             return
 
         # Don't extract from very short responses (likely errors or clarifications)
