@@ -303,6 +303,10 @@ def render_chat_tab() -> None:
                         "question": user_input,
                     }
                 )
+                # Re-run so this answer is drawn by the history loop above, which
+                # is what attaches the "Teach it" control. Without this the
+                # control only appears on the *next* interaction.
+                st.rerun()
 
     # Clear conversation button
     if st.session_state.chat_messages:
