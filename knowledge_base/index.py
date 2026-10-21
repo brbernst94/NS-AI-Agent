@@ -129,6 +129,10 @@ class KnowledgeIndex:
 
         clauses = ["(tenant_id IS NULL OR tenant_id = %s)"]
         params: list[Any] = [tenant_id or ""]
+        # Chunks a practitioner correction has overruled are never retrieved:
+        # leaving them in means the model keeps seeing the thing it was told is
+        # wrong, and it will believe the majority over one correction.
+        clauses.append("doc_type IS DISTINCT FROM 'superseded'")
         for col, val in (where or {}).items():
             if col in TAG_COLUMNS and val not in (None, ""):
                 if isinstance(val, (list, tuple, set)):

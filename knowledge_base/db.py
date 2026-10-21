@@ -287,6 +287,8 @@ _CATALOG_DDL = [
     )
     """,
     "CREATE INDEX IF NOT EXISTS kb_corrections_created_idx ON kb_corrections(created_at DESC)",
+    # How many contradicting chunks this correction retired from retrieval.
+    "ALTER TABLE kb_corrections ADD COLUMN IF NOT EXISTS retired_chunks INTEGER DEFAULT 0",
     "CREATE INDEX IF NOT EXISTS kb_topics_kind_idx ON kb_topics(kind)",
 ]
 
