@@ -24,6 +24,10 @@ TAG_COLUMNS = ("system", "module", "doc_type", "version", "title", "url", "tenan
 # outranks the raw fragments it was written from.
 _TENANT_BOOST = 0.05
 _GUIDE_BOOST = 0.06
+# A practitioner correcting the agent outranks everything. One correction chunk
+# competes against ~1,500 guide chunks and ~60,000 raw ones, so without a boost
+# well clear of _GUIDE_BOOST it never surfaces and the lesson is lost.
+_CORRECTION_BOOST = 0.30
 
 
 class KnowledgeIndex:
@@ -142,6 +146,7 @@ class KnowledgeIndex:
             ORDER BY (embedding <=> %s)
                      - CASE WHEN tenant_id = %s THEN {_TENANT_BOOST} ELSE 0 END
                      - CASE WHEN doc_type = 'guide' THEN {_GUIDE_BOOST} ELSE 0 END
+                     - CASE WHEN doc_type = 'correction' THEN {_CORRECTION_BOOST} ELSE 0 END
             LIMIT %s
         """
         with db.connection() as conn, conn.cursor() as cur:

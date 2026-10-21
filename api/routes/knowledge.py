@@ -54,6 +54,15 @@ class CrawlStartRequest(BaseModel):
     max_pages: int | None = Field(None, ge=1, description="For distill, the number of topics to write")
 
 
+class CorrectionRequest(BaseModel):
+    question: str = Field(..., min_length=3, description="What was asked")
+    correction: str = Field(..., min_length=3, description="What the right answer actually is")
+    wrong_answer: str | None = Field(None, description="The answer the agent gave, if any")
+    module: str | None = Field(None, description="e.g. suitebilling, accounting, inventory")
+    author: str | None = None
+    session_id: str | None = None
+
+
 # ---------------------------------------------------------------------------
 # Dependencies
 # ---------------------------------------------------------------------------
@@ -273,6 +282,41 @@ async def distill_topics(
 
     topics = distill.list_topics(kind=kind, status=status, limit=limit)
     return {"count": len(topics), "topics": topics}
+
+
+@router.post("/correction")
+async def add_correction(body: CorrectionRequest, agent: Any = Depends(get_agent)) -> dict[str, Any]:
+    """Teach the agent that an answer was wrong, and what the truth is."""
+    from knowledge_base import corrections
+
+    try:
+        return corrections.save_correction(
+            agent.knowledge_index,
+            question=body.question,
+            correction=body.correction,
+            wrong_answer=body.wrong_answer,
+            module=body.module,
+            author=body.author,
+            session_id=body.session_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.exception("Correction save error")
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.get("/corrections")
+async def get_corrections(
+    limit: int = 100,
+    module: str | None = None,
+    agent: Any = Depends(get_agent),
+) -> dict[str, Any]:
+    """Everything a practitioner has taught the agent, newest first."""
+    from knowledge_base import corrections
+
+    items = corrections.list_corrections(limit=limit, module=module)
+    return {"count": len(items), "stats": corrections.stats(), "corrections": items}
 
 
 @router.get("/crawl/health")

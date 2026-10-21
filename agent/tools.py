@@ -245,6 +245,12 @@ def _search_knowledge_base(tool_input: dict[str, Any], knowledge_index: Any, ten
         where_from = meta.get("title") or hit["source"]
         extra = " | ".join(x for x in (meta.get("module"), meta.get("doc_type")) if x)
         lines.append(f"--- Result {i} ({hit['score'] * 100:.0f}% | {where_from}{' | ' + extra if extra else ''}) ---")
+        if meta.get("doc_type") == "correction":
+            lines.append(
+                "*** PRACTITIONER CORRECTION — a NetSuite expert corrected this exact "
+                "point after a wrong answer. It overrides the documentation and any "
+                "guide below. Answer with this. ***"
+            )
         if meta.get("url"):
             lines.append(f"URL: {meta['url']}")
         lines.append(hit["text"][:1200])

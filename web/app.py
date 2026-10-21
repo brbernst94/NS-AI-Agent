@@ -198,8 +198,63 @@ def render_sidebar() -> None:
 # Chat Tab
 # ---------------------------------------------------------------------------
 
+MODULES = [
+    "(auto)", "accounting", "banking", "crm", "csv_import", "ecommerce", "inventory",
+    "localization", "oneworld", "order_management", "payroll_hr", "projects",
+    "purchasing", "reporting", "suiteanalytics", "suitebilling", "suitecloud",
+    "suiteflow", "suitescript", "suitetalk", "tax",
+]
+
+
+def _render_teach_control(idx: int, msg: dict) -> None:
+    """The 'that's wrong, here's the truth' box under an assistant answer."""
+    question = msg.get("question") or ""
+    with st.expander("Teach it — this answer is wrong", expanded=False):
+        correction = st.text_area(
+            "What is actually true?",
+            key=f"corr_text_{idx}",
+            placeholder=(
+                "Say what the right answer is, and why the one above is wrong. "
+                "Practical shortcuts are the most valuable thing here — the docs "
+                "already cover the sanctioned path."
+            ),
+            height=140,
+        )
+        col1, col2 = st.columns([1, 2])
+        with col1:
+            module = st.selectbox("Area", MODULES, key=f"corr_mod_{idx}")
+        with col2:
+            asked = st.text_input(
+                "Question being corrected", value=question, key=f"corr_q_{idx}"
+            )
+
+        if st.button("Save correction", key=f"corr_save_{idx}", type="primary"):
+            if not correction.strip():
+                st.warning("Write the correction first.")
+                return
+            result = api_post(
+                "/knowledge/correction",
+                json_data={
+                    "question": asked or question,
+                    "correction": correction,
+                    "wrong_answer": msg.get("content"),
+                    "module": None if module == "(auto)" else module,
+                    "session_id": st.session_state.get("session_id"),
+                },
+            )
+            if result:
+                st.success(
+                    f"Saved as correction #{result.get('id')}. It now outranks the "
+                    "documentation on this point — ask again to check."
+                )
+
+
 def render_chat_tab() -> None:
-    st.header("Chat with NetSuite Migration SME")
+    st.header("Ask the NetSuite expert")
+    st.caption(
+        "When it gets something wrong, hit **Teach it** under the answer. "
+        "Corrections outrank the documentation and every distilled guide."
+    )
 
     if st.session_state.project_id:
         st.info(f"Project context loaded: `{st.session_state.project_id[:16]}...`")
@@ -207,14 +262,16 @@ def render_chat_tab() -> None:
     # Display chat history
     chat_container = st.container()
     with chat_container:
-        for msg in st.session_state.chat_messages:
+        for i, msg in enumerate(st.session_state.chat_messages):
             with st.chat_message(msg["role"]):
                 st.markdown(msg["content"])
                 if msg.get("tool_calls"):
                     st.caption(f"Tools used: {', '.join(msg['tool_calls'])}")
+                if msg["role"] == "assistant":
+                    _render_teach_control(i, msg)
 
     # Chat input
-    if user_input := st.chat_input("Ask about NetSuite migration, field mappings, validation..."):
+    if user_input := st.chat_input("Ask anything about NetSuite..."):
         # Show user message immediately
         st.session_state.chat_messages.append({"role": "user", "content": user_input})
         with st.chat_message("user"):
@@ -242,6 +299,8 @@ def render_chat_tab() -> None:
                     {
                         "role": "assistant",
                         "content": response_text,
+                        # Kept so a correction can record what was actually asked.
+                        "question": user_input,
                     }
                 )
 
@@ -259,6 +318,29 @@ def render_chat_tab() -> None:
 
 def render_knowledge_tab() -> None:
     st.header("Knowledge Base Management")
+
+    with st.expander("What you've taught it", expanded=False):
+        data = api_get("/knowledge/corrections", params={"limit": 100})
+        if not data:
+            st.caption("Could not load corrections.")
+        elif not data.get("corrections"):
+            st.caption(
+                "Nothing yet. Correct a wrong answer in the Chat tab and it shows up here."
+            )
+        else:
+            stats = data.get("stats") or {}
+            st.caption(
+                f"{stats.get('total', 0)} corrections — these outrank the documentation "
+                "and are the starting point for a real answer key."
+            )
+            for c in data["corrections"]:
+                label = f"#{c['id']} · {c.get('module') or 'untagged'} · {c['question'][:70]}"
+                with st.expander(label, expanded=False):
+                    st.markdown("**You said:**")
+                    st.markdown(c["correction"])
+                    if c.get("wrong_answer"):
+                        st.markdown("**It had answered:**")
+                        st.caption(c["wrong_answer"][:1200])
 
     col1, col2 = st.columns([1, 1])
 

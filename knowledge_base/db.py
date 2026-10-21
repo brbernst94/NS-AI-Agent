@@ -270,6 +270,23 @@ _CATALOG_DDL = [
     # Retrieval queries for an interaction: one per side, so the guide is written
     # from passages about both features rather than only the one named first.
     "ALTER TABLE kb_topics ADD COLUMN IF NOT EXISTS queries TEXT[]",
+    # What a practitioner taught the agent after it answered wrongly. Kept
+    # structured (not just as a knowledge chunk) so corrections can be
+    # reviewed, exported as an answer key, and re-applied after a rebuild.
+    """
+    CREATE TABLE IF NOT EXISTS kb_corrections (
+        id           SERIAL      PRIMARY KEY,
+        question     TEXT        NOT NULL,
+        wrong_answer TEXT,
+        correction   TEXT        NOT NULL,
+        module       TEXT,
+        author       TEXT,
+        session_id   TEXT,
+        chunks_added INTEGER     DEFAULT 0,
+        created_at   TIMESTAMPTZ DEFAULT NOW()
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS kb_corrections_created_idx ON kb_corrections(created_at DESC)",
     "CREATE INDEX IF NOT EXISTS kb_topics_kind_idx ON kb_topics(kind)",
 ]
 
